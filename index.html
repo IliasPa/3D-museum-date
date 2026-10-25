@@ -30,15 +30,60 @@
         <p class="start-eyebrow">welcome to</p>
         <h1 class="start-title"></h1>
         <p class="start-subtitle"></p>
-        <button class="start-enter" type="button" disabled>Loading…</button>
+
+        <!-- Step: not signed in yet -->
+        <div class="start-step" data-step="signin" hidden>
+          <button class="start-enter start-google" type="button" data-action="google">
+            <svg viewBox="0 0 48 48" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg>
+            Sign in with Google
+          </button>
+          <p class="start-note">This museum is private: only invited guests can enter.</p>
+          <p class="start-note start-inapp" hidden>Google sign-in doesn’t work inside this app’s browser. Tap ⋯ and choose “Open in Safari” or “Open in Chrome”.</p>
+        </div>
+
+        <!-- Step: working on it -->
+        <div class="start-step" data-step="busy" hidden><div class="spinner" aria-hidden="true"></div></div>
+
+        <!-- Step: this account isn't on a guest list -->
+        <div class="start-step" data-step="denied" hidden>
+          <p class="start-message">
+            <strong class="start-denied-email"></strong> isn’t on a guest list yet.<br />
+            Ask the person who made this museum to add exactly this address.
+          </p>
+          <button class="start-secondary" type="button" data-action="switch">Use another Google account</button>
+        </div>
+
+        <!-- Step: more than one museum -->
+        <div class="start-step" data-step="choose" hidden>
+          <p class="start-message">Which museum would you like to visit?</p>
+          <div class="start-choices"></div>
+        </div>
+
+        <!-- Step: pick your look, then enter -->
+        <div class="start-step" data-step="ready" hidden>
+          <div class="look">
+            <canvas class="look-preview" aria-hidden="true"></canvas>
+            <div class="look-options"></div>
+          </div>
+          <button class="start-enter" type="button" data-action="enter">Enter</button>
+          <p class="start-note start-note-ready"></p>
+        </div>
+
         <p class="start-status" aria-live="polite"></p>
         <p class="start-hint"></p>
+        <p class="start-account" hidden>
+          <span class="start-account-email"></span> ·
+          <button class="start-link" type="button" data-action="signout">Sign out</button>
+          <a class="start-link start-admin" href="admin/" hidden>· Curator page</a>
+        </p>
       </div>
     </section>
 
     <!-- In-game overlay -->
     <div id="hud" class="hud" hidden>
       <div class="hud-room"></div>
+      <div class="hud-people" hidden></div>
+      <button class="hud-heart" type="button" aria-label="Send hearts">♥</button>
       <button class="hud-mute" type="button" aria-label="Mute music" hidden>
         <svg class="icon-on" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
         <svg class="icon-off" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M17 9.5l5 5m0-5l-5 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>

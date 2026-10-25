@@ -4,31 +4,36 @@
  * iPhones only allow sound to start from a tap, so start() must be called from
  * the "Enter" button's click handler. A plain <audio> element is used (rather
  * than Web Audio) because it also plays when the iPhone's silent switch is on.
+ *
+ * The song can arrive later (a couple's own song downloads from the database):
+ * start() "unlocks" the audio element with a moment of silence, and
+ * setSource() then switches to the real song without needing another tap.
  */
 const STORAGE_KEY = 'museum-muted';
+// A tiny silent sound file, played once to unlock audio before the song is ready.
+const SILENCE = 'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQQAAAAAAAAA';
 
 export class Music {
-  constructor({ src, volume }, title) {
+  constructor({ volume }, title) {
     this.volume = volume;
     this.audio = new Audio();
-    this.audio.src = new URL(src, document.baseURI).href;
-    this.audio.loop = true;
     this.audio.preload = 'auto';
     this.audio.setAttribute('playsinline', '');
-    this.available = true;
+    this.available = false; // true once a song is set
     this.started = false;
     this.onChange = () => {};
     this.muted = readMuted();
 
     this.audio.addEventListener('error', () => {
+      if (this.audio.src === SILENCE) return;
       this.available = false;
-      console.info(`[music] no song found at ${src} — add one to enable music`);
+      console.info('[music] the song could not be played');
       this.onChange();
     });
 
     // Pause when the tab/app is in the background, resume when back.
     document.addEventListener('visibilitychange', () => {
-      if (!this.started || this.muted) return;
+      if (!this.started || this.muted || !this.available) return;
       if (document.hidden) this.audio.pause();
       else this.#play();
     });
@@ -38,10 +43,21 @@ export class Music {
     }
   }
 
+  /** Use this song (a URL; can be called before or after start()). */
+  setSource(url) {
+    if (!url) return;
+    this.audio.loop = true;
+    this.audio.src = url;
+    this.available = true;
+    if (this.started && !this.muted) this.#play(true);
+    this.onChange();
+  }
+
   /** Must run inside a click/tap handler (iOS rule). */
   start() {
     this.started = true;
-    if (!this.muted) this.#play(true);
+    if (!this.available) this.audio.src = SILENCE; // unlock now, the song follows (not looped)
+    if (!this.muted) this.#play(this.available);
     this.onChange();
   }
 
@@ -56,7 +72,6 @@ export class Music {
   }
 
   #play(fadeIn = false) {
-    if (!this.available) return;
     if (fadeIn) this.#fadeIn();
     else this.audio.volume = this.volume;
     this.audio.play().catch((err) => console.warn('[music] could not start:', err.message));

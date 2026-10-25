@@ -40,9 +40,12 @@ export function buildFrames(plan, config, renderer, onProgress = () => {}) {
 
   const buckets = { frame: [], mat: [], wallGlow: [], floorGlow: [], beam: [], lamp: [], bulb: [] };
   const items = [];
-  const manager = new THREE.LoadingManager();
-  manager.onProgress = (_url, loaded, total) => onProgress(loaded, total);
-  const loader = new THREE.TextureLoader(manager);
+  const loader = new THREE.TextureLoader();
+  // Photos without a `url` (e.g. the sign-in page preview) just show their colour.
+  const total = plan.frames.filter((f) => f.photo.url).length;
+  let loaded = 0;
+  const progress = () => onProgress(++loaded, total);
+  if (total === 0) onProgress(0, 0);
 
   // Load the first rooms' photos first, so what you see first appears first.
   const order = plan.frames.map((f, i) => i).sort((a, b) => plan.frames[a].roomIndex - plan.frames[b].roomIndex);
@@ -98,13 +101,19 @@ export function buildFrames(plan, config, renderer, onProgress = () => {}) {
     photo.rotation.y = f.rotationY;
     photo.userData.frameIndex = items.length;
     group.add(photo);
-    loader.load(f.photo.src, (tex) => {
-      tex.colorSpace = THREE.SRGBColorSpace;
-      tex.anisotropy = maxAniso;
-      photoMat.map = tex;
-      photoMat.color.set('#ffffff');
-      photoMat.needsUpdate = true;
-    });
+    if (f.photo.url) {
+      f.photo.url('md')
+        .then((url) => loader.loadAsync(url))
+        .then((tex) => {
+          tex.colorSpace = THREE.SRGBColorSpace;
+          tex.anisotropy = maxAniso;
+          photoMat.map = tex;
+          photoMat.color.set('#ffffff');
+          photoMat.needsUpdate = true;
+        })
+        .catch((err) => console.warn('[frames] photo failed to load:', err.message))
+        .finally(progress);
+    }
 
     // Museum label next to the frame (title + date).
     if (f.photo.title || f.photo.date) {

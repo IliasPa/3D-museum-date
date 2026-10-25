@@ -64,6 +64,7 @@ export class Lightbox {
     this.el.classList.remove('show');
     setTimeout(() => {
       this.el.hidden = true;
+      this.token = (this.token ?? 0) + 1; // ignore photos still on their way
       this.img.removeAttribute('src');
     }, 250);
     this.onClose();
@@ -87,13 +88,18 @@ export class Lightbox {
     this.counter.textContent = many ? `${this.index + 1} / ${this.list.length}` : '';
     this.img.alt = photo.title || 'Photo';
 
-    // Show the small version immediately (already downloaded), then the big one.
-    this.img.src = photo.src;
-    const full = new Image();
-    const expected = photo.full;
-    full.onload = () => {
-      if (this.list[this.index]?.photo.full === expected) this.img.src = expected;
-    };
-    full.src = expected;
+    // Show the wall-sized version immediately (already downloaded), then swap
+    // in the sharp full-size one when it arrives.
+    const token = (this.token = (this.token ?? 0) + 1);
+    let sharp = false;
+    this.img.removeAttribute('src');
+    photo.url('md').then((url) => {
+      if (token === this.token && !sharp) this.img.src = url;
+    }).catch(() => {});
+    photo.url('lg').then((url) => {
+      if (token !== this.token) return;
+      sharp = true;
+      this.img.src = url;
+    }).catch(() => {});
   }
 }

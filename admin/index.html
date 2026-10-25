@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="robots" content="noindex, nofollow" />
+    <meta name="theme-color" content="#2b1a1e" />
+    <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+    <title>Curator · Our Museum</title>
+  </head>
+  <body class="admin">
+    <header class="bar">
+      <a class="brand" href="../">Our Museum <span>curator</span></a>
+      <div class="who" hidden>
+        <span class="who-email"></span>
+        <button class="link" type="button" data-action="signout">Sign out</button>
+      </div>
+    </header>
+
+    <!-- Sign-in gate -->
+    <main id="gate" class="gate">
+      <div class="card gate-card">
+        <h1>Curator</h1>
+        <p class="gate-text">Sign in with the curator’s Google account to manage the museums.</p>
+        <button class="btn btn-google" type="button" data-action="signin">Sign in with Google</button>
+        <p class="gate-error" role="alert"></p>
+      </div>
+    </main>
+
+    <!-- Workspace (curator only) -->
+    <main id="workspace" class="workspace" hidden>
+      <aside class="museums">
+        <h2>Museums</h2>
+        <ul class="museum-list"></ul>
+        <form class="new-museum">
+          <input name="name" type="text" placeholder="Couple, e.g. Anna & Nikos" required maxlength="60" />
+          <button class="btn" type="submit">+ New museum</button>
+        </form>
+      </aside>
+
+      <section class="editor" hidden>
+        <div class="editor-head">
+          <div>
+            <h1 class="editor-title"></h1>
+            <p class="editor-stats"></p>
+          </div>
+          <a class="btn btn-ghost walk-link" target="_blank" rel="noopener">Walk through ↗</a>
+        </div>
+
+        <nav class="tabs" role="tablist">
+          <button type="button" role="tab" data-tab="photos" aria-selected="true">Photos</button>
+          <button type="button" role="tab" data-tab="guests">Guests</button>
+          <button type="button" role="tab" data-tab="texts">Texts & rooms</button>
+          <button type="button" role="tab" data-tab="music">Music</button>
+          <button type="button" role="tab" data-tab="preview">Preview</button>
+        </nav>
+
+        <!-- Photos -->
+        <div class="tab" data-panel="photos">
+          <div class="upload">
+            <label class="dropzone">
+              <input class="file-input" type="file" accept="image/*,.heic,.heif" multiple />
+              <strong>Drop photos here</strong> or click to choose
+              <small>JPG, PNG or iPhone HEIC · any size · resized and cleaned automatically</small>
+            </label>
+            <div class="upload-options">
+              <label>New photos go to
+                <select class="upload-room"></select>
+              </label>
+              <button class="btn btn-ghost add-samples" type="button">Add 10 sample photos</button>
+            </div>
+            <p class="upload-status" aria-live="polite"></p>
+          </div>
+          <p class="empty photos-empty">No photos yet.</p>
+          <div class="photo-grid"></div>
+        </div>
+
+        <!-- Guests -->
+        <div class="tab" data-panel="guests" hidden>
+          <p class="help">People who may enter this museum. They sign in with Google using <strong>exactly</strong> this address.
+            Both of you can walk around at the same time and will see each other.</p>
+          <form class="guest-form">
+            <input name="email" type="email" placeholder="name@gmail.com" required autocomplete="off" />
+            <button class="btn" type="submit">Add guest</button>
+          </form>
+          <ul class="guest-list"></ul>
+          <p class="empty guests-empty">No guests yet — nobody but you can enter.</p>
+          <div class="share">
+            <span>Link to send them:</span>
+            <code class="share-url"></code>
+            <button class="btn btn-ghost copy-link" type="button">Copy</button>
+          </div>
+        </div>
+
+        <!-- Texts & rooms -->
+        <form class="tab texts-form" data-panel="texts" hidden>
+          <fieldset>
+            <legend>Start screen</legend>
+            <label>Name in this list <input name="name" maxlength="60" /></label>
+            <label>Title <input name="title" maxlength="60" /></label>
+            <label>Subtitle <input name="subtitle" maxlength="120" /></label>
+            <label>Language of the texts
+              <select name="language"><option value="en">English</option><option value="el">Ελληνικά (Greek)</option></select>
+            </label>
+          </fieldset>
+          <fieldset>
+            <legend>Rooms</legend>
+            <div class="rooms-editor"></div>
+            <button class="btn btn-ghost add-room" type="button">+ Add room</button>
+          </fieldset>
+          <fieldset>
+            <legend>The hidden last room</legend>
+            <label class="check"><input type="checkbox" name="finaleEnabled" /> Show the last room behind the curtain</label>
+            <label>Sign above the curtain <input name="doorSign" maxlength="60" /></label>
+            <label>Room title <input name="finaleTitle" maxlength="60" /></label>
+            <label>Your message <textarea name="message" rows="8"></textarea></label>
+            <label>Signature <input name="signature" maxlength="60" /></label>
+          </fieldset>
+          <div class="form-actions">
+            <button class="btn" type="submit">Save</button>
+            <span class="save-state" aria-live="polite"></span>
+          </div>
+          <fieldset class="danger">
+            <legend>Danger zone</legend>
+            <button class="btn btn-danger delete-museum" type="button">Delete this museum</button>
+          </fieldset>
+        </form>
+
+        <!-- Music -->
+        <div class="tab" data-panel="music" hidden>
+          <p class="music-current"></p>
+          <audio class="music-player" controls preload="none"></audio>
+          <div class="music-actions">
+            <label class="btn">Upload a song (MP3, up to 8 MB)
+              <input class="music-input" type="file" accept="audio/mpeg,audio/mp4,audio/aac,audio/x-m4a,.mp3,.m4a" hidden />
+            </label>
+            <button class="btn btn-ghost remove-music" type="button">Use the default song</button>
+          </div>
+          <p class="upload-status music-status" aria-live="polite"></p>
+        </div>
+
+        <!-- Preview -->
+        <div class="tab" data-panel="preview" hidden>
+          <p class="help">Seen from above: visitors start on the left and walk to the right. Numbers follow the walking order — click one to edit that photo.</p>
+          <div class="plan-wrap"></div>
+        </div>
+      </section>
+    </main>
+
+    <div class="toast" role="status" aria-live="polite"></div>
+    <script type="module" src="/src/admin/admin.js"></script>
+  </body>
+</html>

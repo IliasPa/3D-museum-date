@@ -1,10 +1,15 @@
 /**
  * ════════════════════════════════════════════════════════════════════
- *  OUR MUSEUM — everything you'll want to personalise lives here.
- *  (Which photo hangs where is in photos/photos.json.)
+ *  OUR MUSEUM — shared settings for every museum.
  *
- *  While `npm run dev` is running, just save this file and the
- *  browser reloads by itself.
+ *  Each couple's own texts, rooms, message, song, photos and guests are
+ *  edited on the curator page (/admin). The texts and rooms below are
+ *  only the starting point for a brand-new museum (and the preview on
+ *  the sign-in page). Everything else here — avatar, controls, camera,
+ *  frames, graphics — applies to all museums.
+ *
+ *  While `npm run dev` is running, save this file and the browser
+ *  reloads by itself.
  * ════════════════════════════════════════════════════════════════════
  */
 export const CONFIG = {
@@ -17,9 +22,8 @@ export const CONFIG = {
   language: 'en',
 
   // ── Rooms, in the order you walk through them ───────────────────
-  // In photos.json, "room": 1 means the first room below, 2 the second…
-  // Add or remove entries to change the number of rooms. Rooms grow
-  // automatically when you give them lots of photos.
+  // (Default for new museums — each museum's rooms are edited in /admin.)
+  // Rooms grow automatically when you give them lots of photos.
   //   wall  – wall paint colour
   //   trim  – colour of the door frames / sign text in that room
   rooms: [
@@ -33,18 +37,18 @@ export const CONFIG = {
     enabled: true,
     doorSign: 'One more thing…', // written above the curtain
     title: 'For you', // shown when you step inside
-    // Your personal message. Line breaks are kept. Write as much as you like.
+    // Each museum's message is written in /admin → Texts & rooms.
     message: `[Your message goes here.]
 
-Write something from the heart in src/config.js → finale.message.
+Write something from the heart on the curator page → Texts & rooms.
 Every line break you type shows up here, too.`,
     signature: '— Me',
   },
 
   // ── Music ───────────────────────────────────────────────────────
-  // Replace public/audio/song.mp3 with your song (keep the name, or change it here).
+  // Each museum can have its own song (/admin → Music). Without one,
+  // public/audio/song.mp3 plays.
   music: {
-    src: 'audio/song.mp3',
     volume: 0.7, // 0…1 (iPhones ignore this and use the phone's volume buttons)
   },
 

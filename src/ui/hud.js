@@ -1,4 +1,4 @@
-/** Room name (top left), mute button (top right), room titles and hints. */
+/** Room name (top left), ♥ and mute buttons (top right), who's here, room titles and hints. */
 export class Hud {
   constructor(el, music) {
     this.el = el;
@@ -6,7 +6,18 @@ export class Hud {
     this.toast = el.querySelector('.hud-toast');
     this.hint = el.querySelector('.hud-hint');
     this.mute = el.querySelector('.hud-mute');
+    this.heart = el.querySelector('.hud-heart');
+    this.peopleChip = el.querySelector('.hud-people');
     this.music = music;
+    this.names = new Map(); // uid → name of everyone else here
+    this.onEmote = () => {};
+    this.heart.addEventListener('click', () => {
+      this.onEmote();
+      this.heart.blur();
+      this.heart.classList.remove('pop');
+      void this.heart.offsetWidth; // restart the little bounce
+      this.heart.classList.add('pop');
+    });
 
     this.mute.addEventListener('click', () => {
       music.toggleMute();
@@ -36,6 +47,16 @@ export class Hud {
     this.toast.classList.remove('show');
     void this.toast.offsetWidth; // restart the CSS animation
     this.toast.classList.add('show');
+  }
+
+  /** Everyone else in the museum (Map uid → { name }): updates the chip and says hello/goodbye. */
+  setPeople(people) {
+    for (const [uid, p] of people) if (!this.names.has(uid)) this.showHint(`${p.name} is here ♥`, 4000);
+    for (const [uid, name] of this.names) if (!people.has(uid)) this.showHint(`${name} left the museum`, 3000);
+    this.names = new Map([...people].map(([uid, p]) => [uid, p.name]));
+    const list = [...this.names.values()];
+    this.peopleChip.hidden = list.length === 0;
+    this.peopleChip.textContent = list.length === 1 ? `♥ with ${list[0]}` : `♥ ${list.length + 1} here`;
   }
 
   showHint(text, ms = 6000) {

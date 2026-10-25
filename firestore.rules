@@ -1,0 +1,48 @@
+rules_version = '2';
+
+// Who may read and change what. These run on Google's servers, so they protect
+// the photos even though the website itself is public.
+//
+//   access/{email}            = { museums: [museumId, …] }   ← the guest lists
+//   museums/{museumId}        = texts, rooms, message, music info
+//   museums/{museumId}/photos = photo details (+ a tiny thumbnail)
+//   museums/{museumId}/images = the photo files themselves (md + lg)
+//   museums/{museumId}/music  = the song, split into pieces
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null && request.auth.token.email_verified == true;
+    }
+
+    function myEmail() {
+      return request.auth.token.email.lower();
+    }
+
+    // The curator. Keep this list in sync with src/firebase-config.js and database.rules.json.
+    function isAdmin() {
+      return signedIn() && myEmail() in ['iliasparaskevas3@gmail.com'];
+    }
+
+    // A guest of this museum: their email's access document lists it.
+    function isGuest(museumId) {
+      let access = /databases/$(database)/documents/access/$(myEmail());
+      return signedIn() && exists(access) && museumId in get(access).data.museums;
+    }
+
+    match /access/{email} {
+      allow read: if isAdmin() || (signedIn() && email == myEmail());
+      allow write: if isAdmin();
+    }
+
+    match /museums/{museumId} {
+      allow read: if isAdmin() || isGuest(museumId);
+      allow write: if isAdmin();
+
+      match /{part}/{docId} {
+        allow read: if isAdmin() || isGuest(museumId);
+        allow write: if isAdmin();
+      }
+    }
+  }
+}

@@ -1,7 +1,7 @@
 /**
  * Museum floor plan
  * ─────────────────
- * Turns the room list (config.js) and the photo list (photos.json) into plain
+ * Turns the room list and the photo list (both from the curator page) into plain
  * numbers: where each room is, where the doors are and where every photo
  * hangs. There's no three.js in here — museum.js turns this plan into 3D.
  *
@@ -36,7 +36,7 @@ export function planMuseum(config, photos) {
   const defs = config.rooms.length ? config.rooms : [{ title: 'Gallery', wall: '#eee6dc', trim: '#6b4a35' }];
   const settings = config.frames;
 
-  // Group the photos by room, keeping their photos.json order.
+  // Group the photos by room, keeping their walking order.
   const photosByRoom = defs.map(() => []);
   for (const photo of photos) photosByRoom[roomIndexFor(photo.room, defs)].push(photo);
 

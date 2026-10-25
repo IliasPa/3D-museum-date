@@ -12,8 +12,10 @@
  */
 import * as THREE from 'three';
 import { radialGlowTexture } from '../world/textures.js';
+import { lookColors, defaultLook } from './looks.js';
 
-export async function createAvatar(config) {
+/** `look` = the visitor's chosen colours/hairstyle (see looks.js). */
+export async function createAvatar(config, look = defaultLook()) {
   if (config.avatar.type === 'glb') {
     try {
       const { GltfAvatar } = await import('./gltfAvatar.js'); // only downloaded if used
@@ -22,7 +24,7 @@ export async function createAvatar(config) {
       console.error('[avatar] could not load the .glb avatar, using the built-in one instead:', err);
     }
   }
-  return new ProceduralAvatar(config.avatar.colors);
+  return new ProceduralAvatar(lookColors(look, config.avatar.colors), look.style);
 }
 
 /** Soft dark circle under the avatar — much cheaper than real shadows. */
@@ -45,9 +47,10 @@ export function blobShadow(radius = 0.42) {
 /**
  * A chibi character built from spheres and capsules, flat-shaded for a
  * low-poly look. Faces +Z. About 1.2 m tall.
+ * `hairStyle`: 'short' (with a little curl), 'long' or 'bun'.
  */
 export class ProceduralAvatar {
-  constructor(colors) {
+  constructor(colors, hairStyle = 'short') {
     const mat = (color, extra = {}) => new THREE.MeshLambertMaterial({ color, flatShading: true, ...extra });
     const skin = mat(colors.skin);
     const hair = mat(colors.hair);
@@ -125,11 +128,29 @@ export class ProceduralAvatar {
     fringe.position.set(0.05, 0.19, 0.2);
     fringe.rotation.z = -0.25;
     this.head.add(fringe);
-    // A little curl on top, so the back of the head is cute too.
-    const curl = new THREE.Mesh(new THREE.TorusGeometry(0.06, 0.022, 5, 10, Math.PI * 1.5), hair);
-    curl.position.set(0, 0.36, -0.02);
-    curl.rotation.set(0, Math.PI / 2, 0.6);
-    this.head.add(curl);
+    if (hairStyle === 'long') {
+      // Long hair falling down the back, past the shoulders.
+      const back = new THREE.Mesh(new THREE.CapsuleGeometry(0.25, 0.3, 4, 10), hair);
+      back.scale.set(1.12, 1, 0.62);
+      back.position.set(0, -0.2, -0.14);
+      this.head.add(back);
+      for (const side of [-1, 1]) {
+        const lock = new THREE.Mesh(new THREE.CapsuleGeometry(0.075, 0.26, 3, 8), hair);
+        lock.position.set(side * 0.245, -0.2, 0.04);
+        this.head.add(lock);
+      }
+    } else if (hairStyle === 'bun') {
+      // A round bun on top.
+      const bun = new THREE.Mesh(new THREE.IcosahedronGeometry(0.13, 1), hair);
+      bun.position.set(0, 0.33, -0.1);
+      this.head.add(bun);
+    } else {
+      // A little curl on top, so the back of the head is cute too.
+      const curl = new THREE.Mesh(new THREE.TorusGeometry(0.06, 0.022, 5, 10, Math.PI * 1.5), hair);
+      curl.position.set(0, 0.36, -0.02);
+      curl.rotation.set(0, Math.PI / 2, 0.6);
+      this.head.add(curl);
+    }
 
     // Eyes with a tiny sparkle.
     this.eyes = [-1, 1].map((side) => {

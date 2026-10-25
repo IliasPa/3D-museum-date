@@ -2,22 +2,28 @@
  * Moves the avatar: camera-relative walking, smooth acceleration, turning to
  * face the walking direction, and wall collisions.
  */
+import { Vector3 } from 'three';
 import { resolveCircle } from '../world/collision.js';
 
 const RADIUS = 0.32; // avatar footprint (m)
 const HEIGHT = 1.3; // boxes above this (door lintels) don't block walking
 
 export class PlayerController {
-  constructor(avatar, colliders, controls) {
-    this.avatar = avatar;
+  constructor(avatar, colliders, controls, start) {
+    this.avatar = avatar; // can be replaced at any time (e.g. a new look)
     this.colliders = colliders;
     this.walkSpeed = controls.walkSpeed;
     this.runSpeed = controls.runSpeed;
-    this.position = avatar.root.position;
+    this.position = new Vector3(start.x, 0, start.z);
     this.vx = 0;
     this.vz = 0;
     this.facing = Math.PI; // start facing north (−Z)
-    avatar.root.rotation.y = this.facing;
+    this.#syncAvatar();
+  }
+
+  #syncAvatar() {
+    this.avatar.root.position.copy(this.position);
+    this.avatar.root.rotation.y = this.facing;
   }
 
   /** Current speed 0…1 (relative to running). */
@@ -66,9 +72,9 @@ export class PlayerController {
       let diff = target - this.facing;
       diff = Math.atan2(Math.sin(diff), Math.cos(diff)); // shortest way round
       this.facing += diff * (1 - Math.exp(-dt * 12));
-      this.avatar.root.rotation.y = this.facing;
     }
 
+    this.#syncAvatar();
     this.avatar.update(dt, this.speed01);
   }
 }
