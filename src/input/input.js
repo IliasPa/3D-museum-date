@@ -1,22 +1,23 @@
 /**
  * All player input in one place.
  *
- *   Desktop: WASD / arrow keys to walk, Shift to run, drag the mouse to look
- *            around, mouse wheel to zoom, E / Enter / Space or click to open
- *            the photo you're standing at.
+ *   Desktop: arrow keys to walk, Shift to run, drag the mouse to look around,
+ *            mouse wheel to zoom, Space (or Enter, or a click) to open the
+ *            photo you're standing at, letters A–Z for actions (emotes.js).
  *   Touch:   left side of the screen = floating joystick (push all the way to
- *            run), right side = swipe to look around, tap a photo to open it.
+ *            run), right side = swipe to look around, tap a photo to open it;
+ *            actions are in the 😊 menu.
  *
- * Keys use physical positions (event.code), so WASD works on any keyboard
+ * Keys use physical positions (event.code), so they work on any keyboard
  * layout — Greek included.
  */
 const KEYS = {
-  forward: ['KeyW', 'ArrowUp'],
-  back: ['KeyS', 'ArrowDown'],
-  left: ['KeyA', 'ArrowLeft'],
-  right: ['KeyD', 'ArrowRight'],
+  forward: ['ArrowUp'],
+  back: ['ArrowDown'],
+  left: ['ArrowLeft'],
+  right: ['ArrowRight'],
   run: ['ShiftLeft', 'ShiftRight'],
-  interact: ['KeyE', 'Enter', 'Space', 'NumpadEnter'],
+  interact: ['Space', 'Enter', 'NumpadEnter'],
 };
 const JOYSTICK_ZONE = 0.45; // left 45% of the screen starts the joystick
 const JOYSTICK_RADIUS = 56; // px the knob can travel
@@ -36,6 +37,7 @@ export class Input {
     this.zoomDelta = 0;
     this.onTap = null; // (clientX, clientY) => void
     this.onInteract = null; // () => void
+    this.onAction = null; // (letter) => void — A…Z
     this.usingTouch = matchMedia('(pointer: coarse)').matches;
 
     this.keys = new Set();
@@ -95,7 +97,16 @@ export class Input {
   #bindKeyboard() {
     const all = new Set(Object.values(KEYS).flat());
     addEventListener('keydown', (e) => {
-      if (!all.has(e.code) || e.metaKey || e.ctrlKey || e.altKey) return;
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      // Letters A–Z: actions.
+      const letter = /^Key([A-Z])$/.exec(e.code)?.[1];
+      if (letter) {
+        if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+        e.preventDefault();
+        if (this.enabled && !e.repeat) this.onAction?.(letter);
+        return;
+      }
+      if (!all.has(e.code)) return;
       if (e.target instanceof HTMLButtonElement && KEYS.interact.includes(e.code)) return; // let buttons work
       e.preventDefault();
       if (!this.enabled) return;

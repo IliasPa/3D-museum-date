@@ -10,15 +10,42 @@
         "$uid": {
           ".write": "auth != null && auth.uid == $uid && auth.token.email_verified == true && root.child('access').child(auth.token.email.toLowerCase().replace('.', ',')).child($museum).val() == true",
           ".validate": "newData.hasChildren(['name', 'look', 'x', 'z', 'f', 's', 't'])",
-          "name": { ".validate": "newData.isString() && newData.val().length <= 40" },
-          "look": { ".validate": "newData.isString() && newData.val().length <= 60" },
-          "x": { ".validate": "newData.isNumber()" },
-          "z": { ".validate": "newData.isNumber()" },
-          "f": { ".validate": "newData.isNumber()" },
-          "s": { ".validate": "newData.isNumber()" },
-          "t": { ".validate": "newData.isNumber()" },
-          "e": { ".validate": "newData.isNumber()" },
-          "$other": { ".validate": false }
+          "name": {
+            ".validate": "newData.isString() && newData.val().length <= 40"
+          },
+          "look": {
+            ".validate": "newData.isString() && newData.val().length <= 120"
+          },
+          "x": {
+            ".validate": "newData.isNumber()"
+          },
+          "z": {
+            ".validate": "newData.isNumber()"
+          },
+          "f": {
+            ".validate": "newData.isNumber()"
+          },
+          "s": {
+            ".validate": "newData.isNumber()"
+          },
+          "t": {
+            ".validate": "newData.isNumber()"
+          },
+          "e": {
+            ".validate": "newData.isNumber()"
+          },
+          "a": {
+            ".validate": "newData.isString() && newData.val().length <= 12"
+          },
+          "an": {
+            ".validate": "newData.isNumber()"
+          },
+          "at": {
+            ".validate": "newData.isString() && newData.val().length <= 128"
+          },
+          "$other": {
+            ".validate": false
+          }
         }
       }
     }

@@ -11,7 +11,7 @@ import { getFirestoreDb, isAdminEmail } from './firebase.js';
 /** Museums this person may enter: [{ id, name, title }]. The curator sees all of them. */
 export async function findMuseums(user) {
   const { db, fs } = await getFirestoreDb();
-  const summary = (snap) => ({ id: snap.id, name: snap.data().name || snap.data().title || 'Museum', title: snap.data().title });
+  const summary = (snap) => ({ id: snap.id, slug: snap.data().slug ?? '', name: snap.data().name || snap.data().title || 'Museum', title: snap.data().title });
 
   if (isAdminEmail(user.email)) {
     const snap = await fs.getDocs(fs.collection(db, 'museums'));
@@ -38,14 +38,16 @@ export async function isGuestOf(user, museumId) {
 }
 
 /**
- * A museum's settings + its photos (in walking order). Each photo has a
- * `url(size)` function: 'md' for the wall, 'lg' for full screen.
+ * A museum's settings + its photos and videos (in walking order). Each photo
+ * has a `url(size)` function: 'md' for the wall, 'lg' for full screen. Each
+ * video has `posterUrl` (a promise) and `url()` (downloads the film).
  */
 export async function loadMuseum(museumId) {
   const { db, fs } = await getFirestoreDb();
-  const [museumSnap, photoSnap] = await Promise.all([
+  const [museumSnap, photoSnap, videoSnap] = await Promise.all([
     fs.getDoc(fs.doc(db, 'museums', museumId)),
     fs.getDocs(fs.query(fs.collection(db, 'museums', museumId, 'photos'), fs.orderBy('order'))),
+    fs.getDocs(fs.query(fs.collection(db, 'museums', museumId, 'videos'), fs.orderBy('order'))),
   ]);
   if (!museumSnap.exists()) throw new Error('This museum no longer exists.');
   const photos = photoSnap.docs.map((d) => {
@@ -62,7 +64,34 @@ export async function loadMuseum(museumId) {
       url: (size) => imageUrl(museumId, d.id, size),
     };
   });
-  return { id: museumId, data: museumSnap.data(), photos };
+  const videos = videoSnap.docs.map((d) => {
+    const v = d.data();
+    return {
+      id: d.id,
+      room: v.room ?? 1,
+      title: v.title ?? '',
+      caption: v.caption ?? '',
+      width: v.width,
+      height: v.height,
+      duration: v.duration,
+      posterUrl: Promise.resolve(v.poster ? URL.createObjectURL(new Blob([v.poster.toUint8Array()], { type: 'image/jpeg' })) : null),
+      url: () => videoUrl(museumId, d.id, v),
+    };
+  });
+  return { id: museumId, data: museumSnap.data(), photos, videos };
+}
+
+/** Object URL for a video (stored in < 1 MB pieces); downloaded once, then reused. */
+export function videoUrl(museumId, videoId, video) {
+  const key = `${museumId}/video/${videoId}`;
+  if (!urls.has(key)) {
+    const promise = Promise.all(
+      Array.from({ length: video.chunks }, (_, i) => readBytes(`museums/${museumId}/videochunks/${videoId}-${i}`)),
+    ).then((parts) => URL.createObjectURL(new Blob(parts, { type: 'video/mp4' })));
+    promise.catch(() => urls.delete(key));
+    urls.set(key, promise);
+  }
+  return urls.get(key);
 }
 
 const urls = new Map();

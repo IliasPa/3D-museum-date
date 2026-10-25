@@ -1,7 +1,7 @@
 /**
- * The curator page (/admin): create a museum per couple, upload their photos,
- * write their texts and message, choose their song, and decide which Google
- * accounts may enter. Only the admin email(s) in firebase-config.js get past
+ * The curator page (/admin): create a museum per couple, upload their photos
+ * and videos, write their texts and message, choose their song, and decide
+ * which Google accounts may enter. Each museum has its own link (…/?m=name). Only the admin email(s) in firebase-config.js get past
  * the sign-in gate — and the database rules enforce the same thing.
  */
 import '@fontsource/eb-garamond/500.css';
@@ -14,6 +14,7 @@ import { loadMusicUrl } from '../backend/museumData.js';
 import { museumConfig } from '../museumConfig.js';
 import * as store from './store.js';
 import { processImage, isHeic, titleFromFileName } from './imageTools.js';
+import { processVideo, MAX_SECONDS } from './videoTools.js';
 import { renderFloorPlan } from './floorPlan.js';
 
 const $ = (selector, root = document) => root.querySelector(selector);
@@ -23,6 +24,7 @@ const state = {
   museums: [],
   current: null, // the museum being edited ({ id, ...data })
   photos: [],
+  videos: [],
   guests: [],
   tab: 'photos',
 };
@@ -95,7 +97,7 @@ function renderMuseumList() {
 $('.new-museum').addEventListener('submit', async (e) => {
   e.preventDefault();
   const input = e.target.elements.name;
-  const id = await store.createMuseum(input.value.trim());
+  const id = await store.createMuseum(input.value.trim(), state.museums);
   input.value = '';
   toast('Museum created ♥ Now add photos and guests.');
   await refreshMuseums(id);
@@ -106,18 +108,33 @@ async function selectMuseum(id) {
   for (const b of $('.museum-list').querySelectorAll('button')) b.setAttribute('aria-current', String(b.dataset.id === id));
   $('.editor').hidden = false;
   $('.editor-title').textContent = state.current.name || state.current.title;
-  $('.walk-link').href = new URL(`../?museum=${id}`, location.href).href;
-  $('.share-url').textContent = new URL('../', location.href).href;
-  [state.photos, state.guests] = await Promise.all([store.listPhotos(id), store.listGuests(id)]);
+  if (!state.current.slug) {
+    // Museums made before links existed get one now.
+    state.current.slug = store.uniqueSlug(state.current.name || state.current.title || 'museum', state.museums, id);
+    await store.saveMuseum(id, { slug: state.current.slug });
+  }
+  renderLinks();
+  [state.photos, state.videos, state.guests] = await Promise.all([store.listPhotos(id), store.listVideos(id), store.listGuests(id)]);
   renderStats();
   renderTab();
 }
 
+/** This museum's own address (and the "Walk through" button). */
+function museumLink() {
+  return new URL(`../?m=${encodeURIComponent(state.current.slug)}`, location.href).href;
+}
+
+function renderLinks() {
+  $('.walk-link').href = museumLink();
+  $('.share-url').textContent = museumLink();
+}
+
 function renderStats() {
   const rooms = museumConfig(state.current).rooms.length;
-  const p = state.photos.length;
-  const g = state.guests.length;
-  $('.editor-stats').textContent = `${p} photo${p === 1 ? '' : 's'} · ${rooms} room${rooms === 1 ? '' : 's'} · ${g} guest${g === 1 ? '' : 's'}`;
+  const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
+  $('.editor-stats').textContent = [
+    plural(state.photos.length, 'photo'), plural(state.videos.length, 'video'), plural(rooms, 'room'), plural(state.guests.length, 'guest'),
+  ].join(' · ');
 }
 
 // ── Tabs ──────────────────────────────────────────────────────────────
@@ -131,7 +148,7 @@ for (const tab of document.querySelectorAll('[role="tab"]')) {
 function renderTab() {
   for (const t of document.querySelectorAll('[role="tab"]')) t.setAttribute('aria-selected', String(t.dataset.tab === state.tab));
   for (const p of document.querySelectorAll('[data-panel]')) p.hidden = p.dataset.panel !== state.tab;
-  ({ photos: renderPhotos, guests: renderGuests, texts: renderTexts, music: renderMusic, preview: renderPreview })[state.tab]();
+  ({ photos: renderPhotos, videos: renderVideos, guests: renderGuests, texts: renderTexts, music: renderMusic, preview: renderPreview })[state.tab]();
 }
 
 // ── Photos ────────────────────────────────────────────────────────────
@@ -153,6 +170,7 @@ function renderPhotos() {
 }
 
 function photoCard(photo, index) {
+  const museumId = state.current.id; // saves go to this museum, even if you switch meanwhile
   const card = document.createElement('article');
   card.className = 'photo-card';
   card.dataset.id = photo.id;
@@ -192,7 +210,7 @@ function photoCard(photo, index) {
         room: Number(card.querySelector('[name="room"]').value),
       };
       try {
-        await store.updatePhoto(state.current.id, photo.id, patch);
+        await store.updatePhoto(museumId, photo.id, patch);
         Object.assign(photo, patch);
         saved.textContent = 'Saved ✓';
       } catch (err) {
@@ -209,14 +227,14 @@ function photoCard(photo, index) {
       const i = state.photos.indexOf(photo);
       const j = i + Number(b.dataset.move);
       if (j < 0 || j >= state.photos.length) return;
-      await store.swapOrder(state.current.id, photo, state.photos[j]);
+      await store.swapOrder(museumId, photo, state.photos[j]);
       [state.photos[i], state.photos[j]] = [state.photos[j], state.photos[i]];
       renderPhotos();
     });
   }
   $('[data-delete]', card).addEventListener('click', async () => {
     if (!confirm(`Delete “${photo.title || 'this photo'}”?`)) return;
-    await store.deletePhoto(state.current.id, photo.id);
+    await store.deletePhoto(museumId, photo.id);
     state.photos = state.photos.filter((p) => p !== photo);
     renderPhotos();
     renderStats();
@@ -313,13 +331,20 @@ $('.guest-form').addEventListener('submit', async (e) => {
   const input = e.target.elements.email;
   const email = store.normalizeEmail(input.value);
   if (!store.isValidEmail(email)) return toast('That doesn’t look like an email address.');
-  if (state.guests.includes(email)) return toast('Already on the list.');
+  // Already invited? Just let the curator know (here: nothing to do; elsewhere: add, with a note).
+  const invitedTo = await store.museumsOfGuest(email);
+  if (state.guests.includes(email) || invitedTo.includes(state.current.id)) {
+    return toast(`${email} is already on this museum’s guest list.`, 5000);
+  }
   await store.addGuest(state.current.id, email);
   state.guests = [...state.guests, email].sort();
   input.value = '';
   renderGuests();
   renderStats();
-  toast(`${email} can now enter ♥`);
+  const elsewhere = invitedTo.map((id) => state.museums.find((m) => m.id === id)?.name).filter(Boolean);
+  toast(elsewhere.length
+    ? `${email} can now enter ♥ (note: this email was already invited to ${elsewhere.map((n) => `“${n}”`).join(', ')})`
+    : `${email} can now enter ♥`, elsewhere.length ? 7000 : 3500);
 });
 
 $('.copy-link').addEventListener('click', async () => {
@@ -339,6 +364,7 @@ function renderTexts() {
   const c = museumConfig(state.current);
   const f = textsForm.elements;
   f.name.value = state.current.name ?? '';
+  f.slug.value = state.current.slug ?? '';
   f.title.value = c.title;
   f.subtitle.value = c.subtitle;
   f.language.value = c.language;
@@ -401,7 +427,11 @@ textsForm.addEventListener('input', dirty);
 textsForm.addEventListener('submit', async (e) => {
   e.preventDefault();
   const f = textsForm.elements;
+  const wantedSlug = store.slugify(f.slug.value || f.name.value || state.current.name);
+  const slug = store.uniqueSlug(wantedSlug, state.museums, state.current.id);
+  if (slug !== wantedSlug) toast(`“${wantedSlug}” is already another museum’s link, so this one is “${slug}”.`, 6000);
   const patch = {
+    slug,
     name: f.name.value.trim() || state.current.name,
     title: f.title.value.trim(),
     subtitle: f.subtitle.value.trim(),
@@ -417,6 +447,8 @@ textsForm.addEventListener('submit', async (e) => {
   };
   await store.saveMuseum(state.current.id, patch);
   Object.assign(state.current, patch); // state.current is also the entry in state.museums
+  f.slug.value = slug;
+  renderLinks();
   renderMuseumList();
   $('.editor-title').textContent = patch.name;
   renderStats();
@@ -431,6 +463,92 @@ $('.delete-museum').addEventListener('click', async () => {
   state.current = null;
   toast(`“${name}” was deleted.`);
   await refreshMuseums();
+});
+
+// ── Videos ────────────────────────────────────────────────────────────
+function renderVideos() {
+  const select = $('.video-room');
+  roomOptions(select, select.value || state.videos.at(-1)?.room || 1);
+  $('.videos-empty').hidden = state.videos.length > 0;
+  $('.video-grid').replaceChildren(...state.videos.map((video, i) => videoCard(video, i)));
+}
+
+function videoCard(video, index) {
+  const museumId = state.current.id; // saves go to this museum, even if you switch meanwhile
+  const card = document.createElement('article');
+  card.className = 'photo-card';
+  card.dataset.id = video.id;
+  const minutes = `${Math.floor(video.duration / 60)}:${String(Math.round(video.duration % 60)).padStart(2, '0')}`;
+  card.innerHTML = `
+    <div class="photo-thumb"><span class="photo-number">▶ ${index + 1}</span></div>
+    <div class="photo-fields">
+      <input name="title" placeholder="Title" maxlength="80" />
+      <textarea name="caption" rows="2" placeholder="Caption (optional)" maxlength="300"></textarea>
+      <div class="photo-row">
+        <select name="room" aria-label="Room"></select>
+        <span class="saved">${minutes} · ${(video.size / 1048576).toFixed(1)} MB</span>
+        <button type="button" class="icon danger" data-delete aria-label="Delete video">🗑</button>
+      </div>
+    </div>`;
+  const img = new Image();
+  img.alt = '';
+  img.src = URL.createObjectURL(new Blob([video.poster.toUint8Array()], { type: 'image/jpeg' }));
+  $('.photo-thumb', card).prepend(img);
+  card.querySelector('[name="title"]').value = video.title ?? '';
+  card.querySelector('[name="caption"]').value = video.caption ?? '';
+  roomOptions(card.querySelector('[name="room"]'), video.room);
+  let timer;
+  const save = () => {
+    clearTimeout(timer);
+    timer = setTimeout(async () => {
+      const patch = {
+        title: card.querySelector('[name="title"]').value.trim(),
+        caption: card.querySelector('[name="caption"]').value.trim(),
+        room: Number(card.querySelector('[name="room"]').value),
+      };
+      await store.updateVideo(museumId, video.id, patch);
+      Object.assign(video, patch);
+      toast('Video saved ✓', 1500);
+    }, 600);
+  };
+  card.addEventListener('input', save);
+  card.addEventListener('change', save);
+  $('[data-delete]', card).addEventListener('click', async () => {
+    if (!confirm(`Delete the video “${video.title || 'untitled'}”?`)) return;
+    await store.deleteVideo(museumId, video);
+    state.videos = state.videos.filter((v) => v !== video);
+    renderVideos();
+    renderStats();
+  });
+  return card;
+}
+
+$('.video-input').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  e.target.value = '';
+  if (!file) return;
+  const museumId = state.current.id;
+  const status = $('.video-status');
+  try {
+    status.textContent = 'Converting… 0%';
+    const processed = await processVideo(file, (p) => (status.textContent = `Converting… ${Math.round(p * 100)}%`));
+    const video = await store.uploadVideo(museumId, processed, {
+      order: Math.max(0, ...state.videos.map((v) => v.order ?? 0)) + 1,
+      room: Number($('.video-room').value) || 1,
+      title: titleFromFileName(file.name),
+      caption: '',
+    }, (n, total) => (status.textContent = `Uploading… ${Math.round((n / total) * 100)}%`));
+    if (state.current?.id === museumId) {
+      state.videos.push(video);
+      renderVideos();
+      renderStats();
+    }
+    const trimmed = processed.duration >= MAX_SECONDS - 0.5 ? ` (trimmed to ${MAX_SECONDS / 60} minutes)` : '';
+    status.textContent = `Video added ♥${trimmed} — give it a title above.`;
+  } catch (err) {
+    console.error(err);
+    status.textContent = `That video didn’t work: ${err.message}`;
+  }
 });
 
 // ── Music ─────────────────────────────────────────────────────────────
@@ -471,10 +589,10 @@ $('.remove-music').addEventListener('click', async () => {
 
 // ── Preview (floor plan) ──────────────────────────────────────────────
 function renderPreview() {
-  const svg = renderFloorPlan(museumConfig(state.current), state.photos, (photo) => {
-    state.tab = 'photos';
+  const svg = renderFloorPlan(museumConfig(state.current), state.photos, state.videos, (item) => {
+    state.tab = state.videos.includes(item) ? 'videos' : 'photos';
     renderTab();
-    const card = document.querySelector(`.photo-card[data-id="${photo.id}"]`);
+    const card = document.querySelector(`.photo-card[data-id="${item.id}"]`);
     card?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     card?.classList.add('flash');
     setTimeout(() => card?.classList.remove('flash'), 1600);
@@ -483,10 +601,10 @@ function renderPreview() {
 }
 
 // ── Little helpers ────────────────────────────────────────────────────
-function toast(text) {
+function toast(text, ms = 3500) {
   const t = $('.toast');
   t.textContent = text;
   t.classList.add('show');
   clearTimeout(toast.timer);
-  toast.timer = setTimeout(() => t.classList.remove('show'), 3500);
+  toast.timer = setTimeout(() => t.classList.remove('show'), ms);
 }

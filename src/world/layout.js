@@ -31,17 +31,26 @@ const FINALE_SIZE = 9;
 const CORNER_MARGIN = 1.0; // keep frames this far from corners…
 const DOOR_MARGIN = 0.8; // …and from door openings
 const FRAME_BORDER = 0.1; // frame moulding width on each side of the photo
+const BENCH_OFFSET = 2.3; // benches stand this far either side of the centre aisle
+const SCREEN = { maxWidth: 2.2, maxHeight: 1.3, gap: 1.5 }; // video screens (gap = wall kept free either side of centre)
 
-export function planMuseum(config, photos) {
+/**
+ * @param photos [{ room, width, height, … }]
+ * @param videos [{ room, width, height, … }] — each hangs on the wall in front of a bench
+ */
+export function planMuseum(config, photos, videos = []) {
   const defs = config.rooms.length ? config.rooms : [{ title: 'Gallery', wall: '#eee6dc', trim: '#6b4a35' }];
   const settings = config.frames;
 
-  // Group the photos by room, keeping their walking order.
+  // Group the photos and videos by room, keeping their walking order.
   const photosByRoom = defs.map(() => []);
   for (const photo of photos) photosByRoom[roomIndexFor(photo.room, defs)].push(photo);
+  const videosByRoom = defs.map(() => []);
+  for (const video of videos) videosByRoom[roomIndexFor(video.room, defs)].push(video);
 
   const rooms = [];
   const frames = [];
+  const benches = [];
   let zSouth = 0; // interior face of the current room's south wall
 
   defs.forEach((def, index) => {
@@ -49,15 +58,22 @@ export function planMuseum(config, photos) {
     let width = ROOM_SIZE;
     let depth = ROOM_SIZE;
     let placed = null;
-    // Grow the room until all of its photos fit on the walls.
+    let roomBenches;
+    // Grow the room until all of its photos fit on the walls and every video has a bench.
     for (let attempt = 0; !placed; attempt++) {
       const rect = { x0: -width / 2, x1: width / 2, z0: zSouth - depth, z1: zSouth };
-      placed = placeFrames(rect, photosByRoom[index], settings, {
-        southDoor: !isFirst,
-        northDoor: index < defs.length - 1 || config.finale.enabled,
-        northDoorWidth: index === defs.length - 1 ? FINALE_DOOR_WIDTH : DOOR_WIDTH,
-        reserveSouthWall: isFirst, // the welcome sign hangs there
-      });
+      roomBenches = benchesFor(rect, index);
+      const roomVideos = videosByRoom[index];
+      if (roomVideos.length <= roomBenches.length) {
+        roomVideos.forEach((video, i) => attachScreen(roomBenches[i], video, rect));
+        placed = placeFrames(rect, photosByRoom[index], settings, {
+          southDoor: !isFirst,
+          northDoor: index < defs.length - 1 || config.finale.enabled,
+          northDoorWidth: index === defs.length - 1 ? FINALE_DOOR_WIDTH : DOOR_WIDTH,
+          reserveSouthWall: isFirst, // the welcome sign hangs there
+          screens: roomBenches.filter((b) => b.screen),
+        });
+      }
       if (!placed) {
         if (attempt % 2 === 0 || width + settings.spacing > MAX_ROOM_WIDTH) depth += settings.spacing;
         else width += settings.spacing;
@@ -65,6 +81,7 @@ export function planMuseum(config, photos) {
     }
     rooms.push(makeRoom(index, def, { x0: -width / 2, x1: width / 2, z0: zSouth - depth, z1: zSouth }));
     for (const f of placed) frames.push({ ...f, roomIndex: index });
+    benches.push(...roomBenches);
     zSouth = zSouth - depth - WALL_THICKNESS;
   });
 
@@ -102,6 +119,7 @@ export function planMuseum(config, photos) {
     rooms,
     doors,
     frames,
+    benches,
     start: { x: 0, z: first.z1 - 2.6 }, // a few steps in from the south wall
     bounds: {
       x0: Math.min(...rooms.map((r) => r.x0)) - WALL_THICKNESS,
@@ -110,6 +128,40 @@ export function planMuseum(config, photos) {
       z1: first.z1 + WALL_THICKNESS,
     },
   };
+}
+
+/**
+ * Benches flanking the centre aisle — one pair per ~10 m of room length.
+ * The west bench faces the west wall, the east bench the east wall; each has
+ * two seats. Videos hang on the wall a bench faces.
+ */
+function benchesFor(rect, roomIndex) {
+  const depth = rect.z1 - rect.z0;
+  const cx = (rect.x0 + rect.x1) / 2;
+  const pairs = Math.max(1, Math.floor(depth / 10));
+  const list = [];
+  for (let k = 0; k < pairs; k++) {
+    const z = rect.z0 + (depth * (k + 0.5)) / pairs;
+    for (const facing of [-1, 1]) {
+      const x = cx + facing * BENCH_OFFSET;
+      list.push({ x, z, roomIndex, facing, seats: [{ x, z: z - 0.55 }, { x, z: z + 0.55 }], video: null, screen: null });
+    }
+  }
+  return list;
+}
+
+/** Put a video's screen on the wall in front of a bench. */
+function attachScreen(bench, video, rect) {
+  const aspect = video.width / video.height || 16 / 9;
+  let w = SCREEN.maxWidth;
+  let h = w / aspect;
+  if (h > SCREEN.maxHeight) {
+    h = SCREEN.maxHeight;
+    w = h * aspect;
+  }
+  const nx = -bench.facing; // the wall faces back into the room
+  bench.video = video;
+  bench.screen = { x: bench.facing < 0 ? rect.x0 : rect.x1, z: bench.z, y: 1.75, nx, nz: 0, rotationY: Math.atan2(nx, 0), width: w, height: h };
 }
 
 /** "room": 2 → index 1. Also accepts the room's title. Unknown → first room. */
@@ -170,15 +222,25 @@ function placeFrames(rect, photos, settings, opts) {
     { from: [x1, z0], dir: [0, 1], len: D, normal: [-1, 0], door: 0 }, // east, north→south
     { from: [x1, z1], dir: [-1, 0], len: W, normal: [0, -1], door: opts.southDoor ? DOOR_WIDTH : 0, skip: opts.reserveSouthWall }, // south
   ];
+  // Wall space kept free: (centred) doors, and video screens on the side walls.
+  for (const wall of walls) {
+    wall.blocked = wall.door ? [[wall.len / 2 - wall.door / 2 - DOOR_MARGIN, wall.len / 2 + wall.door / 2 + DOOR_MARGIN]] : [];
+  }
+  for (const s of opts.screens ?? []) {
+    const t = s.screen.nx > 0 ? z1 - s.z : s.z - z0; // distance along the west / east wall
+    walls[s.screen.nx > 0 ? 0 : 2].blocked.push([t - SCREEN.gap, t + SCREEN.gap]);
+  }
 
-  // Split walls around their (centred) doors into usable segments.
+  // Split walls around the blocked parts into usable segments.
   const segments = [];
   for (const wall of walls) {
     if (wall.skip) continue;
-    const ranges = wall.door
-      ? [[CORNER_MARGIN, wall.len / 2 - wall.door / 2 - DOOR_MARGIN], [wall.len / 2 + wall.door / 2 + DOOR_MARGIN, wall.len - CORNER_MARGIN]]
-      : [[CORNER_MARGIN, wall.len - CORNER_MARGIN]];
-    for (const [a, b] of ranges) segments.push({ wall, a, b, len: b - a });
+    let start = CORNER_MARGIN;
+    for (const [a, b] of wall.blocked.sort((p, q) => p[0] - q[0])) {
+      if (a > start) segments.push({ wall, a: start, b: a, len: a - start });
+      start = Math.max(start, b);
+    }
+    if (wall.len - CORNER_MARGIN > start) segments.push({ wall, a: start, b: wall.len - CORNER_MARGIN, len: wall.len - CORNER_MARGIN - start });
   }
 
   // How many frames fit on each segment.

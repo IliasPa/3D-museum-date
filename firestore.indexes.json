@@ -1,8 +1,30 @@
 {
   "indexes": [],
   "fieldOverrides": [
-    { "collectionGroup": "images", "fieldPath": "data", "indexes": [] },
-    { "collectionGroup": "music", "fieldPath": "data", "indexes": [] },
-    { "collectionGroup": "photos", "fieldPath": "thumb", "indexes": [] }
+    {
+      "collectionGroup": "images",
+      "fieldPath": "data",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "music",
+      "fieldPath": "data",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "photos",
+      "fieldPath": "thumb",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "videochunks",
+      "fieldPath": "data",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "videos",
+      "fieldPath": "poster",
+      "indexes": []
+    }
   ]
 }

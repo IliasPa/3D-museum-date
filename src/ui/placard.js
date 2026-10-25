@@ -5,7 +5,7 @@ export class Placard {
     this.date = el.querySelector('.placard-date');
     this.title = el.querySelector('.placard-title');
     this.caption = el.querySelector('.placard-caption');
-    el.querySelector('.placard-cta').textContent = isTouch ? 'Tap to view' : 'Click or press E to view';
+    el.querySelector('.placard-cta').textContent = isTouch ? 'Tap to view' : 'Click or press Space to view';
     this.current = null;
     this.onOpen = () => {};
     el.addEventListener('click', () => {

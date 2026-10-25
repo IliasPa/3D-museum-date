@@ -2,9 +2,9 @@
 
 A tiny 3D art museum where a couple walks around together, each as their own little avatar, looking at framed photos of the two of them. Three themed rooms lead to a hidden last room with a personal message behind a red curtain, with music and floating hearts along the way.
 
-- **Visitors** sign in with Google. They only get in if their email is on that couple's guest list.
-- **The curator** (you) uses **`/admin`** to create a museum per couple, upload their photos, write their texts and message, choose their song and add the emails that may enter.
-- **Two (or more) people** can be in the same museum at the same time. They see each other walk around in real time, and can send ♥.
+- **Visitors** sign in with Google. Each couple has its own link, and people only ever see the museums their email is invited to.
+- **The curator** (you) uses **`/admin`** to create a museum per couple, upload their photos and videos, write their texts and message, choose their song and add the emails that may enter.
+- **Two (or more) people** can be in the same museum at the same time. They dress up their avatars, walk around together in real time, hold hands, hug, sit on a bench to watch a video, and much more.
 
 **Live site:** https://iliaspa.github.io/3D-museum-date/ · **Curator page:** https://iliaspa.github.io/3D-museum-date/admin/
 
@@ -23,28 +23,52 @@ If you ever move the site to another address (e.g. Netlify or your own domain), 
 ## 2. Make a museum for a couple (`/admin`)
 
 1. Go to **https://iliaspa.github.io/3D-museum-date/admin/** and sign in with `iliasparaskevas3@gmail.com`.
-2. Under **Museums**, type a name (e.g. "Maria & Nikos") and click **+ New museum**.
+2. Under **Museums**, type a name (e.g. "Maria & Nikos") and click **+ New museum**. It gets its own link, e.g. `…/3D-museum-date/?m=maria-nikos`. Greek names work too ("Μαρία & Νίκος" becomes `maria-nikos`). You can change the link name under *Texts & rooms*.
 3. **Photos:** drag photos in, or click to choose them. JPG, PNG and iPhone HEIC all work, at any size. They're resized, compressed and stripped of location data in your browser before uploading. Choose the room first with "New photos go to…". Then give each photo a title, a date (any text, like "Summer 2021") and a caption; changes save by themselves. Use ← → to change the walking order. "Add 10 sample photos" fills a museum with placeholders, if you want to try things out.
-4. **Guests:** add the couple's Google (Gmail) addresses. Use exactly the address they sign in with. Then send them the link shown there.
-5. **Texts & rooms:** the title on the start screen, room names and colours (add or remove rooms), and **the personal message** in the hidden last room. Click **Save**.
-6. **Music:** upload their song (MP3, up to 8 MB). Without one, a gentle music-box tune plays.
-7. **Preview:** a light floor plan showing where every photo hangs (click a number to edit that photo). **Walk through ↗** opens the real 3D museum. As the curator you can visit any museum, and you stay invisible to the couple unless you add your own email as a guest.
+4. **Videos:** choose a video (any phone video, including iPhone HEVC). Your browser converts it to a small MP4 that plays everywhere (up to 2 minutes, about 12 MB a minute). It hangs on the wall **in front of a bench** in the room you chose, and plays, with sound, when someone sits on that bench. Each room has benches for two videos; rooms grow longer if you add more.
+5. **Guests:** add the couple's Google (Gmail) addresses. Use exactly the address they sign in with. Then send them **this museum's link** (shown there, with a Copy button). If you add an email that's already on the list, or that's already invited to another museum, you get a short notice.
+6. **Texts & rooms:** the link name, the title on the start screen, room names and colours (add or remove rooms), and **the personal message** in the hidden last room. Click **Save**.
+7. **Music:** upload their song (MP3, up to 8 MB). Without one, a gentle music-box tune plays.
+8. **Preview:** a light floor plan showing where every photo, bench and video screen is (click a number to edit that item). **Walk through ↗** opens the real 3D museum. As the curator you can visit any museum, and you stay invisible to the couple unless you add your own email as a guest.
 
-You can make as many museums as you like, one per couple, each with its own photos, texts, song and guests. If an email is invited to several museums, that person picks one after signing in.
+You can make as many museums as you like, one per couple, each with its own link, photos, videos, texts, song and guests. Nobody can enter a museum they're not invited to: the database refuses it, even if someone has the link. If an email is invited to several museums, that person picks one of *their* museums after signing in.
 
 ## 3. Playing together
 
-- Both people open the link on their phones or computers and sign in with Google.
-- Before entering, each picks a look: sweater, hair colour, skin tone and hairstyle (short, long or bun).
-- Inside, you see each other with name tags. The ♥ button (top right) sends a burst of hearts the other person sees, and hearts float up whenever you stand close together.
+- Both people open their museum's link on their phones or computers and sign in with Google.
+- Before entering, each dresses up their avatar:
+  - **Body:** guy or girl, skin tone, eye colour.
+  - **Hair:** 10 styles (incl. bald) in 11 colours, plus freckles, stubble, moustache or beard.
+  - **Outfit:** sweater, T-shirt, hoodie or dress; trousers, shorts or skirt; shoe colour.
+  - **Extras:** beanie, cap, bow, flower crown or crown; round glasses, shades or heart glasses; scarf, backpack, earrings or a heart.
+  - 🎲 picks a random outfit.
+- Inside, you see each other with name tags. The ♥ button sends hearts the other person sees, and hearts float up whenever you stand close together. **Walk side by side and you hold hands.**
 - The chip under the room name shows who's with you. You'll see a short note when someone arrives or leaves.
 
 | Controls | Desktop | Phone / tablet |
 | --- | --- | --- |
-| Walk | WASD or arrow keys (hold Shift to run) | Left thumb anywhere on the left side, then slide (all the way to run) |
+| Walk | Arrow keys (hold Shift to run) | Left thumb anywhere on the left side, then slide (all the way to run) |
 | Look around | Drag with the mouse; the wheel zooms | Swipe on the right side |
-| Open a photo | Click it, click the caption card, or press E | Tap the photo or the caption card |
+| Open a photo | **Space**, or click it / the caption card | Tap the photo or the caption card |
+| Actions | Letters **A–Z** (😊 lists them) | The **😊** button |
 | Photo viewer | ← → to browse, Esc to close | Swipe to browse, × or tap outside to close |
+
+**The 26 actions.** Everyone in the museum sees them.
+
+| | | | |
+| --- | --- | --- | --- |
+| **A** Applaud 👏 | **H** Hug 🤗 | **O** Oops: trip and fall | **V** Victory ✌️ |
+| **B** Blush 😊 | **I** Ignore: turn away dramatically | **P** Puppy eyes 🥺 | **W** Wave 👋 |
+| **C** Cry 😢 | **J** Jump | **Q** Quack 🦆 | **X** Nope ❌ |
+| **D** Dance 💃 | **K** Kiss 😘 | **R** Rainbow 🌈 | **Y** Yawn 🥱 |
+| **E** Eat with chopsticks 🍜 | **L** Laugh 😂 | **S** Sit on a nearby bench | **Z** Zombie walk 🧟 (press again to stop) |
+| **F** Flip (backflip) | **M** Meow 🐱 | **T** Tickle | |
+| **G** Giggle 🤭 | **N** Nap 😴 | **U** Uh-oh! 🤩 | |
+
+- **Hug** and **Kiss** need you to be close and **facing each other**: the other person hugs back or blushes. From further away, H makes a heart with your hands and K blows a kiss.
+- **Tickle** works when you're close: the other person falls down laughing. From further away you tickle the air.
+- **Sit (S)** works next to a bench. If a video hangs in front of it, the camera glides to a cinema view and the video plays with sound (the music pauses). Walk, or press S again, to stand up. Two people can share a bench, and they hold hands.
+- Dance, Nap and Sit last until you walk. Zombie walk lasts until you press Z again.
 
 **Sign-in tip:** Google blocks sign-in inside Instagram/Facebook/TikTok's own browsers. If someone opens the link from a DM, they should tap ⋯ → *Open in Safari/Chrome*. The page explains this when it detects such a browser.
 
@@ -55,6 +79,7 @@ You can make as many museums as you like, one per couple, each with its own phot
 - **The GitHub secret alert:** GitHub flags the `apiKey` in `src/firebase-config.js` as a "Google API Key". That's expected. A Firebase web key identifies the project and has to be sent to every visitor's browser, so it can't be hidden, and on its own it can't read anything. It is also restricted: it only works from `iliaspa.github.io`, the Google sign-in pop-up and `localhost:5173`/`4173`, and only for sign-in and the databases. To close the alert: repository → **Security → Secret scanning** → the alert → **Close as → Won't fix**.
 - On the free Spark plan this comfortably covers many couples. The limits are 1 GB of stored data (about 1,500 photos), 10 GB of downloads a month (about 1,500 museum visits; photos are cached on the device after the first visit) and 100 people online at once. No credit card is needed. If you ever hit a limit, the museum just pauses until the next day or month. It never charges you.
 - Photos are stored inside the database rather than as files, so each is capped at 1600 px for full screen. That's sharp on phones and laptops.
+- Videos use the same free storage (about 12 MB per minute of video), so keep them short and sweet. A handful of 1-minute videos per couple is fine.
 
 ## 5. Develop on your Mac
 
@@ -104,14 +129,15 @@ The built-in avatar is made of simple shapes, and you can switch everyone to a r
 6. Save it as `public/models/avatar.glb` (create the `models` folder).
 7. In `src/config.js` set `avatar.type: 'glb'`. If the model walks backwards, set `rotationY: Math.PI`.
 
-(The look picker's colours only apply to the built-in avatar.)
+(The look picker and the A–Z body animations apply to the built-in avatar. A .glb character keeps its own animations and shows the action bubbles.)
 
 ## 8. Project map
 
 ```
 admin/index.html          the curator page
 src/admin/                curator logic: admin.js (UI), store.js (database writes),
-                          imageTools.js (resize/HEIC in the browser), floorPlan.js (preview)
+                          imageTools.js (resize/HEIC in the browser), videoTools.js (video
+                          conversion in the browser), floorPlan.js (preview)
 src/backend/              firebase.js (setup + Google sign-in), museumData.js (reading museums),
                           presence.js (live positions of everyone in the museum)
 src/firebase-config.js    Firebase project settings + admin email
@@ -119,8 +145,8 @@ src/config.js             shared settings (avatar, controls, camera, frames, gra
 src/museumConfig.js       shared settings + one museum's own texts/rooms
 src/main.js               the visitor flow: preview → sign in → load museum → look → enter
 src/game.js               renderer, main loop, your avatar, the others' avatars, photos nearby
-src/world/                rooms, frames, the hidden room, hearts, dust, textures, collisions
-src/player/               avatars (+ looks, + other people's), walking, camera
+src/world/                rooms, frames, video screens, the hidden room, hearts, effects, dust…
+src/player/               avatars (+ looks, + other people's), actions A–Z (emotes.js), walking, camera
 src/ui/                   start screen (+ look picker), HUD, caption card, photo viewer, letter
 firestore.rules           who may read/write the museums (runs on Google's servers)
 database.rules.json       who may read/write live positions

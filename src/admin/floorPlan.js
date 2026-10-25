@@ -27,10 +27,12 @@ function box(x0, x1, z0, z1, attrs) {
 /**
  * @param config  museum settings (museumConfig.js)
  * @param photos  [{ id, room, width, height, color, title }]
- * @param onPhotoClick (photo) => void
+ * @param videos  [{ id, room, width, height, title }]
+ * @param onClick (photo or video) => void
  */
-export function renderFloorPlan(config, photos, onPhotoClick = () => {}) {
-  const plan = planMuseum(config, photos);
+export function renderFloorPlan(config, photos, videos, onClick = () => {}) {
+  const onPhotoClick = onClick;
+  const plan = planMuseum(config, photos, videos);
   const { x0, x1, z0, z1 } = plan.bounds;
   const pad = 1.6;
   const svg = el('svg', {
@@ -45,12 +47,6 @@ export function renderFloorPlan(config, photos, onPhotoClick = () => {}) {
     svg.append(box(room.x0, room.x1, room.z0, room.z1, {
       fill: room.wall, stroke: '#5a3a28', 'stroke-width': WALL_THICKNESS,
     }));
-    const label = room.isFinale ? `♥ ${room.title}` : room.title;
-    const size = Math.min(1.3, room.depth / Math.max(5, label.length * 0.6));
-    svg.append(el('text', {
-      x: px(room.cx, room.cz), y: py(room.cx - room.width * 0.2), class: 'plan-room', 'font-size': size, // above the start dot
-      fill: room.isFinale ? '#f8d7dc' : 'rgba(46, 34, 32, 0.55)',
-    }, label));
   }
 
   // Door openings (drawn over the walls) — the last one has a curtain.
@@ -82,9 +78,36 @@ export function renderFloorPlan(config, photos, onPhotoClick = () => {}) {
     svg.append(g);
   });
 
+  // Benches, and the video screens in front of them.
+  for (const bench of plan.benches) {
+    svg.append(box(bench.x - 0.28, bench.x + 0.28, bench.z - 1.1, bench.z + 1.1, { fill: '#a8754f', stroke: '#5a3a28', 'stroke-width': 0.05 }));
+    if (!bench.screen) continue;
+    const s = bench.screen;
+    const t = 0.34;
+    const g = el('g', { class: 'plan-photo', tabindex: 0 });
+    g.append(el('title', {}, `▶ ${bench.video.title || 'Video'} (plays when someone sits on this bench)`));
+    g.append(box(s.x + s.nx * t - t / 2, s.x + s.nx * t + t / 2, s.z - s.width / 2, s.z + s.width / 2, { fill: '#1c1a1b' }));
+    const bx = s.x + s.nx * 1.3;
+    g.append(el('circle', { cx: px(bx, s.z), cy: py(bx), r: 0.62, class: 'plan-badge plan-video' }));
+    g.append(el('text', { x: px(bx, s.z), y: py(bx), class: 'plan-number', 'font-size': 0.62 }, '▶'));
+    g.addEventListener('click', () => onClick(bench.video));
+    svg.append(g);
+  }
+
   // Where visitors start.
   const { x, z } = plan.start;
   svg.append(el('circle', { cx: px(x, z), cy: py(x), r: 0.5, class: 'plan-start' }));
   svg.append(el('text', { x: px(x, z), y: py(x) + 1.4, class: 'plan-start-label', 'font-size': 0.7 }, 'start'));
+
+  // Room names last (on top), in the aisle between the benches.
+  for (const room of plan.rooms) {
+    const label = room.isFinale ? `♥ ${room.title}` : room.title;
+    const size = Math.min(1.2, room.depth / Math.max(5, label.length * 0.62));
+    svg.append(el('text', {
+      x: px(room.cx, room.cz) + (room.index === 0 ? 1.2 : 0), y: py(room.cx), class: 'plan-room', 'font-size': size,
+      fill: room.isFinale ? '#f8d7dc' : 'rgba(46, 34, 32, 0.6)',
+      ...(room.isFinale ? { style: 'stroke: rgba(40, 8, 20, 0.6)' } : {}),
+    }, label));
+  }
   return svg;
 }

@@ -102,25 +102,29 @@ async function boot() {
         start.denied(user.email, () => signOutUser());
         return;
       }
-      const wanted = new URLSearchParams(location.search).get('museum');
-      let chosen = museums.find((m) => m.id === wanted) ?? (museums.length === 1 ? museums[0] : null);
+      // Each couple has its own link (…/?m=their-name). Only museums this
+      // account is invited to are ever offered — the database enforces it too.
+      const params = new URLSearchParams(location.search);
+      const wanted = params.get('m') ?? params.get('museum');
+      let chosen = museums.find((m) => m.slug === wanted || m.id === wanted) ?? (museums.length === 1 ? museums[0] : null);
+      const wrongLink = wanted && !museums.some((m) => m.slug === wanted || m.id === wanted);
       if (!chosen) {
         game.holdFrames = false;
-        chosen = await start.choose(museums);
+        chosen = await start.choose(museums, wrongLink ? 'That link is for a museum you’re not invited to. Here are yours:' : undefined);
         game.holdFrames = true;
       }
       if (stale()) return;
 
       // 3. Load the couple's museum.
       start.busy('Opening the museum…');
-      const { data: museumData, photos } = await data.loadMuseum(chosen.id);
+      const { data: museumData, photos, videos } = await data.loadMuseum(chosen.id);
       const config = museumConfig(museumData);
       await loadFonts(config, photos);
       if (stale()) return;
       document.documentElement.lang = config.language;
       start.setTitle(config.title, config.subtitle);
       letter.setContent(config.finale);
-      await game.setMuseum(config, photos, look, (loaded, total) => start.setProgress(loaded, total));
+      await game.setMuseum(config, photos, look, (loaded, total) => start.setProgress(loaded, total), videos);
       data.loadMusicUrl(chosen.id, museumData.music)
         .then((url) => music.setSource(url ?? DEFAULT_SONG))
         .catch(() => music.setSource(DEFAULT_SONG));
@@ -139,7 +143,8 @@ async function boot() {
         },
         onEnter: () => enter(user, chosen.id, isGuest),
       });
-      if (!photos.length) start.setStatus('No photos here yet — add some on the curator page.');
+      if (wrongLink) start.setStatus('That link was for another museum — this one is yours ♥');
+      else if (!photos.length) start.setStatus('No photos here yet — add some on the curator page.');
     } catch (err) {
       if (stale()) return;
       console.error(err);
@@ -161,14 +166,24 @@ async function boot() {
     }
   }
 
+  // Actions (A–Z keys, or the 😊 menu), short hints, and videos pausing the music.
+  hud.onAction = (key) => game.performAction(key);
+  game.onHint = (text) => hud.showHint(text, 3500);
+  game.onVideoChange = (playing, { muted } = {}) => {
+    if (playing) music.pauseForVideo();
+    else music.resumeAfterVideo();
+    if (playing && muted) hud.showHint('Tap the screen for sound 🔊', 5000);
+  };
+
   // 4. "Enter": start the music (must happen inside the tap for iPhone), play, meet the others.
   function enter(user, museumId, publish) {
     music.start();
+    game.setSelfId(user.uid);
     game.start();
     hud.show();
     hud.showHint(isTouch
-      ? 'Left thumb to walk · swipe to look around'
-      : 'WASD / arrows to walk · Shift to run · drag to look around');
+      ? 'Left thumb to walk · swipe to look around · 😊 for actions'
+      : 'Arrow keys to walk · Space opens a photo · A–Z for actions (😊 lists them)');
 
     let presence = null;
     hud.onEmote = () => {

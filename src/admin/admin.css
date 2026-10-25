@@ -607,6 +607,9 @@ textarea {
 }
 
 .plan-room {
+  paint-order: stroke;
+  stroke: rgba(255, 253, 250, 0.7);
+  stroke-width: 0.25px;
   font-family: var(--serif);
   text-anchor: middle;
   dominant-baseline: middle;
@@ -623,6 +626,14 @@ textarea {
 
 .plan-badge {
   fill: var(--wine);
+}
+
+.plan-video {
+  fill: #1c1a1b;
+}
+
+.texts-form .hint {
+  font-size: 0.75rem;
 }
 
 .plan-number {

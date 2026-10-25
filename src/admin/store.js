@@ -8,6 +8,8 @@
  *   museums/{id}/images/{photoId}-md   1024 px JPEG bytes (on the wall)
  *   museums/{id}/images/{photoId}-lg   1600 px JPEG bytes (full screen)
  *   museums/{id}/music/{version}-{n}   the song, in pieces of < 1 MB
+ *   museums/{id}/videos/{videoId}      video details + poster picture
+ *   museums/{id}/videochunks/{videoId}-{n}   the video, in pieces of < 1 MB
  *
  * Guest lists are mirrored to the Realtime Database (access/{email,with,commas})
  * because the live-avatar rules there can't read Firestore.
@@ -15,7 +17,24 @@
 import { getFirestoreDb, getRealtimeDb } from '../backend/firebase.js';
 import { newMuseumData } from '../museumConfig.js';
 
-const MUSIC_CHUNK = 900 * 1024;
+const CHUNK = 900 * 1024; // a database document holds at most 1 MB
+
+// ── Links: each museum gets its own readable address, …/?m=maria-nikos ─
+const GREEK = { α: 'a', ά: 'a', β: 'v', γ: 'g', δ: 'd', ε: 'e', έ: 'e', ζ: 'z', η: 'i', ή: 'i', θ: 'th', ι: 'i', ί: 'i', ϊ: 'i', ΐ: 'i', κ: 'k', λ: 'l', μ: 'm', ν: 'n', ξ: 'x', ο: 'o', ό: 'o', π: 'p', ρ: 'r', σ: 's', ς: 's', τ: 't', υ: 'y', ύ: 'y', ϋ: 'y', ΰ: 'y', φ: 'f', χ: 'ch', ψ: 'ps', ω: 'o', ώ: 'o' };
+
+/** "Μαρία & Νίκος" → "maria-nikos", "Anna & Ben!" → "anna-ben". */
+export function slugify(text) {
+  return String(text).toLowerCase().replace(/[α-ωάέήίόύώϊϋΐΰς]/g, (c) => GREEK[c] ?? '')
+    .normalize('NFKD').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'museum';
+}
+
+/** A slug not used by any other museum (adds -2, -3… if needed). */
+export function uniqueSlug(wanted, museums, exceptId = null) {
+  const taken = new Set(museums.filter((m) => m.id !== exceptId).map((m) => m.slug));
+  let slug = slugify(wanted);
+  for (let n = 2; taken.has(slug); n++) slug = `${slugify(wanted).slice(0, 36)}-${n}`;
+  return slug;
+}
 
 async function fsdb() {
   return getFirestoreDb();
@@ -30,10 +49,11 @@ export async function listMuseums() {
     .sort((a, b) => (a.createdAt?.toMillis?.() ?? 0) - (b.createdAt?.toMillis?.() ?? 0));
 }
 
-export async function createMuseum(name) {
+export async function createMuseum(name, existingMuseums = []) {
   const { db, fs } = await fsdb();
   const ref = await fs.addDoc(fs.collection(db, 'museums'), {
     ...newMuseumData(name),
+    slug: uniqueSlug(name, existingMuseums),
     createdAt: fs.serverTimestamp(),
     updatedAt: fs.serverTimestamp(),
   });
@@ -48,7 +68,7 @@ export async function saveMuseum(id, patch) {
 /** Deletes a museum with all its photos, music and guest-list entries. */
 export async function deleteMuseum(id) {
   const { db, fs } = await fsdb();
-  for (const part of ['photos', 'images', 'music']) {
+  for (const part of ['photos', 'images', 'music', 'videos', 'videochunks']) {
     const snap = await fs.getDocs(fs.collection(db, 'museums', id, part));
     for (const d of snap.docs) await fs.deleteDoc(d.ref); // one by one: image documents are big
   }
@@ -70,6 +90,13 @@ export function normalizeEmail(email) {
 
 export function isValidEmail(email) {
   return /^[^\s@/]+@[^\s@/]+\.[^\s@/]+$/.test(email);
+}
+
+/** The museums an email is already invited to (to warn about duplicates). */
+export async function museumsOfGuest(email) {
+  const { db, fs } = await fsdb();
+  const snap = await fs.getDoc(fs.doc(db, 'access', normalizeEmail(email)));
+  return snap.exists() ? snap.data().museums ?? [] : [];
 }
 
 export async function addGuest(museumId, email) {
@@ -161,10 +188,10 @@ export async function swapOrder(museumId, a, b) {
 export async function uploadMusic(museumId, file, onProgress = () => {}) {
   const { db, fs } = await fsdb();
   const bytes = new Uint8Array(await file.arrayBuffer());
-  const chunks = Math.ceil(bytes.length / MUSIC_CHUNK);
+  const chunks = Math.ceil(bytes.length / CHUNK);
   const version = String(Date.now());
   for (let i = 0; i < chunks; i++) {
-    const piece = bytes.subarray(i * MUSIC_CHUNK, (i + 1) * MUSIC_CHUNK);
+    const piece = bytes.subarray(i * CHUNK, (i + 1) * CHUNK);
     await fs.setDoc(fs.doc(db, 'museums', museumId, 'music', `${version}-${i}`), { data: fs.Bytes.fromUint8Array(piece) });
     onProgress(i + 1, chunks);
   }
@@ -186,4 +213,46 @@ async function deleteMusicPieces(museumId, music) {
   for (let i = 0; i < music.chunks; i++) {
     await fs.deleteDoc(fs.doc(db, 'museums', museumId, 'music', `${music.version}-${i}`));
   }
+}
+
+// ── Videos ────────────────────────────────────────────────────────────
+export async function listVideos(museumId) {
+  const { db, fs } = await fsdb();
+  const snap = await fs.getDocs(fs.query(fs.collection(db, 'museums', museumId, 'videos'), fs.orderBy('order')));
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+}
+
+/** Saves a converted video (videoTools.js) in < 1 MB pieces, then its details. */
+export async function uploadVideo(museumId, processed, details, onProgress = () => {}) {
+  const { db, fs } = await fsdb();
+  const ref = fs.doc(fs.collection(db, 'museums', museumId, 'videos'));
+  const chunks = Math.ceil(processed.bytes.length / CHUNK);
+  for (let i = 0; i < chunks; i++) {
+    const piece = processed.bytes.subarray(i * CHUNK, (i + 1) * CHUNK);
+    await fs.setDoc(fs.doc(db, 'museums', museumId, 'videochunks', `${ref.id}-${i}`), { data: fs.Bytes.fromUint8Array(piece) });
+    onProgress(i + 1, chunks);
+  }
+  const data = {
+    ...details,
+    width: processed.width,
+    height: processed.height,
+    duration: processed.duration,
+    size: processed.bytes.length,
+    chunks,
+    poster: fs.Bytes.fromUint8Array(processed.poster),
+    createdAt: fs.serverTimestamp(),
+  };
+  await fs.setDoc(ref, data); // last, so visitors never see a half-uploaded video
+  return { id: ref.id, ...data };
+}
+
+export async function updateVideo(museumId, videoId, patch) {
+  const { db, fs } = await fsdb();
+  await fs.updateDoc(fs.doc(db, 'museums', museumId, 'videos', videoId), patch);
+}
+
+export async function deleteVideo(museumId, video) {
+  const { db, fs } = await fsdb();
+  await fs.deleteDoc(fs.doc(db, 'museums', museumId, 'videos', video.id));
+  for (let i = 0; i < video.chunks; i++) await fs.deleteDoc(fs.doc(db, 'museums', museumId, 'videochunks', `${video.id}-${i}`));
 }

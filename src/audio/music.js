@@ -33,7 +33,7 @@ export class Music {
 
     // Pause when the tab/app is in the background, resume when back.
     document.addEventListener('visibilitychange', () => {
-      if (!this.started || this.muted || !this.available) return;
+      if (!this.started || this.muted || !this.available || this.videoPlaying) return;
       if (document.hidden) this.audio.pause();
       else this.#play();
     });
@@ -61,13 +61,24 @@ export class Music {
     this.onChange();
   }
 
+  /** While a video plays, the music waits. */
+  pauseForVideo() {
+    this.videoPlaying = true;
+    this.audio.pause();
+  }
+
+  resumeAfterVideo() {
+    this.videoPlaying = false;
+    if (this.started && !this.muted && this.available) this.#play(true);
+  }
+
   toggleMute() {
     this.muted = !this.muted;
     try {
       localStorage.setItem(STORAGE_KEY, this.muted ? '1' : '0');
     } catch {}
     if (this.muted) this.audio.pause();
-    else if (this.started) this.#play();
+    else if (this.started && !this.videoPlaying) this.#play();
     this.onChange();
   }
 

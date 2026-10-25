@@ -49,6 +49,7 @@
 
         <nav class="tabs" role="tablist">
           <button type="button" role="tab" data-tab="photos" aria-selected="true">Photos</button>
+          <button type="button" role="tab" data-tab="videos">Videos</button>
           <button type="button" role="tab" data-tab="guests">Guests</button>
           <button type="button" role="tab" data-tab="texts">Texts & rooms</button>
           <button type="button" role="tab" data-tab="music">Music</button>
@@ -77,8 +78,8 @@
 
         <!-- Guests -->
         <div class="tab" data-panel="guests" hidden>
-          <p class="help">People who may enter this museum. They sign in with Google using <strong>exactly</strong> this address.
-            Both of you can walk around at the same time and will see each other.</p>
+          <p class="help">People who may enter this museum. They sign in with Google using <strong>exactly</strong> this address,
+            and only ever see the museums they're invited to. Both of you can walk around at the same time and will see each other.</p>
           <form class="guest-form">
             <input name="email" type="email" placeholder="name@gmail.com" required autocomplete="off" />
             <button class="btn" type="submit">Add guest</button>
@@ -86,7 +87,7 @@
           <ul class="guest-list"></ul>
           <p class="empty guests-empty">No guests yet — nobody but you can enter.</p>
           <div class="share">
-            <span>Link to send them:</span>
+            <span>This museum's link:</span>
             <code class="share-url"></code>
             <button class="btn btn-ghost copy-link" type="button">Copy</button>
           </div>
@@ -97,6 +98,8 @@
           <fieldset>
             <legend>Start screen</legend>
             <label>Name in this list <input name="name" maxlength="60" /></label>
+            <label>Link name <span class="hint">— the museum's address ends with <code>?m=</code> and this</span>
+              <input name="slug" maxlength="40" pattern="[a-z0-9\-]+" title="Small letters, numbers and dashes" /></label>
             <label>Title <input name="title" maxlength="60" /></label>
             <label>Subtitle <input name="subtitle" maxlength="120" /></label>
             <label>Language of the texts
@@ -125,6 +128,27 @@
             <button class="btn btn-danger delete-museum" type="button">Delete this museum</button>
           </fieldset>
         </form>
+
+        <!-- Videos -->
+        <div class="tab" data-panel="videos" hidden>
+          <p class="help">A video hangs on the wall in front of a bench and plays — with sound — when someone sits on that bench
+            (press <strong>S</strong>, or 😊 → Sit). Each room has benches for two videos; rooms grow longer if you add more.</p>
+          <div class="upload">
+            <label class="dropzone video-drop">
+              <input class="video-input" type="file" accept="video/*" />
+              <strong>Choose a video</strong>
+              <small>Any phone video · converted in your browser to a small MP4 that plays everywhere · up to 2 minutes</small>
+            </label>
+            <div class="upload-options">
+              <label>It goes to
+                <select class="video-room"></select>
+              </label>
+            </div>
+            <p class="upload-status video-status" aria-live="polite"></p>
+          </div>
+          <p class="empty videos-empty">No videos yet.</p>
+          <div class="photo-grid video-grid"></div>
+        </div>
 
         <!-- Music -->
         <div class="tab" data-panel="music" hidden>

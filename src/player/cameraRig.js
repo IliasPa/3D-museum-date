@@ -33,6 +33,20 @@ export class CameraRig {
     this.distance = Math.max(this.minDistance, Math.min(this.maxDistance, this.distance * (1 + delta)));
   }
 
+  /**
+   * Glide to a fixed "cinema" view ({ position, target } as Vector3s), e.g.
+   * behind a bench looking at a video. Pass null to glide back.
+   */
+  setShot(shot) {
+    if (shot) this.shot = shot;
+    this.shotGoal = shot ? 1 : 0;
+  }
+
+  /** True while a cinema view is on screen (mouse/swipe looking is paused). */
+  get inShot() {
+    return (this.shotGoal ?? 0) > 0;
+  }
+
   update(dt, focus, colliders) {
     const goal = new THREE.Vector3(focus.x, focus.y + LOOK_HEIGHT, focus.z);
     if (!this.initialized) {
@@ -53,6 +67,17 @@ export class CameraRig {
 
     this.camera.position.copy(this.target).addScaledVector(this.dir, this.current);
     this.camera.position.y = Math.max(0.25, this.camera.position.y);
-    this.camera.lookAt(this.target);
+
+    // Blend towards the cinema view (smooth in and out over ~1.3 s).
+    this.shotT = Math.min(1, Math.max(0, (this.shotT ?? 0) + (this.shotGoal ? dt : -dt) / 1.3));
+    if (this.shot && this.shotT > 0) {
+      const e = this.shotT < 0.5 ? 4 * this.shotT ** 3 : 1 - (-2 * this.shotT + 2) ** 3 / 2;
+      this.camera.position.lerp(this.shot.position, e);
+      this.camera.lookAt(this.lookAt.copy(this.target).lerp(this.shot.target, e));
+    } else {
+      this.camera.lookAt(this.target);
+    }
   }
+
+  lookAt = new THREE.Vector3();
 }

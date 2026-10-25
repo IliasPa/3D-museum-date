@@ -1,4 +1,6 @@
-/** Room name (top left), ♥ and mute buttons (top right), who's here, room titles and hints. */
+import { EMOTES, MENU } from '../player/emotes.js';
+
+/** Room name (top left), ♥ / actions / mute buttons (top right), who's here, room titles and hints. */
 export class Hud {
   constructor(el, music) {
     this.el = el;
@@ -11,6 +13,8 @@ export class Hud {
     this.music = music;
     this.names = new Map(); // uid → name of everyone else here
     this.onEmote = () => {};
+    this.onAction = () => {}; // (letter)
+    this.#buildActions();
     this.heart.addEventListener('click', () => {
       this.onEmote();
       this.heart.blur();
@@ -47,6 +51,37 @@ export class Hud {
     this.toast.classList.remove('show');
     void this.toast.offsetWidth; // restart the CSS animation
     this.toast.classList.add('show');
+  }
+
+  /** The 😊 menu: all 26 actions (the same as the keys A–Z). */
+  #buildActions() {
+    const button = this.el.querySelector('.hud-actions');
+    const panel = this.el.querySelector('.actions-panel');
+    const grid = panel.querySelector('.actions-grid');
+    const toggle = (open) => {
+      panel.hidden = !open;
+      button.setAttribute('aria-expanded', String(open));
+    };
+    button.addEventListener('click', () => {
+      toggle(panel.hidden);
+      button.blur();
+    });
+    for (const key of MENU) {
+      const def = EMOTES[key];
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'action';
+      b.title = `${def.label} (${key})`;
+      b.innerHTML = `<span class="action-emoji"></span><span class="action-key">${key}</span><span class="action-label"></span>`;
+      b.querySelector('.action-emoji').textContent = def.emoji;
+      b.querySelector('.action-label').textContent = def.label;
+      b.addEventListener('click', () => {
+        toggle(false);
+        b.blur();
+        this.onAction(key); // runs inside the tap: sitting at a video can start it with sound
+      });
+      grid.append(b);
+    }
   }
 
   /** Everyone else in the museum (Map uid → { name }): updates the chip and says hello/goodbye. */

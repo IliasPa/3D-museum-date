@@ -4,12 +4,14 @@
  */
 import * as THREE from 'three';
 import { ProceduralAvatar } from '../player/avatar.js';
-import { lookColors } from '../player/looks.js';
+import { EmotePlayer } from '../player/emotes.js';
 
 export class AvatarPreview {
-  constructor(canvas, baseColors) {
+  constructor(canvas) {
     this.canvas = canvas;
-    this.baseColors = baseColors;
+    this.emotes = new EmotePlayer();
+    const none = () => {};
+    this.ctx = { fx: { bubble: none, emoji: none, rainbow: none }, hearts: null, position: new THREE.Vector3(), facing: 0, partner: null };
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     this.renderer.toneMapping = THREE.NeutralToneMapping;
@@ -25,7 +27,8 @@ export class AvatarPreview {
     this.time = 0;
   }
 
-  setLook(look) {
+  /** Show this look (and strike a little pose, `emote` = an action letter). */
+  setLook(look, emote = 'V') {
     if (this.avatar) {
       this.scene.remove(this.avatar.root);
       this.avatar.root.traverse((o) => {
@@ -33,8 +36,9 @@ export class AvatarPreview {
         o.material?.dispose();
       });
     }
-    this.avatar = new ProceduralAvatar(lookColors(look, this.baseColors), look.style);
+    this.avatar = new ProceduralAvatar(look);
     this.scene.add(this.avatar.root);
+    this.emotes.play(emote);
   }
 
   start() {
@@ -51,8 +55,9 @@ export class AvatarPreview {
         this.camera.updateProjectionMatrix();
       }
       if (this.avatar) {
-        this.avatar.root.rotation.y = Math.sin(this.time * 0.7) * 0.7;
-        this.avatar.update(dt, 0);
+        this.avatar.root.rotation.y = Math.sin(this.time * 0.7) * 0.6;
+        this.ctx.avatar = this.avatar;
+        this.avatar.update(dt, 0, this.emotes.update(dt, this.ctx, false));
       }
       this.renderer.render(this.scene, this.camera);
     });

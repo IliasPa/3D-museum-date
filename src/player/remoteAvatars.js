@@ -1,38 +1,57 @@
 /**
- * The other visitors' avatars. Positions arrive ~10× per second from the
- * Realtime Database (see backend/presence.js); in between, each avatar glides
- * smoothly towards its latest position so movement looks continuous.
+ * The other visitors' avatars. Positions and actions arrive ~10× per second
+ * from the Realtime Database (see backend/presence.js); in between, each
+ * avatar glides smoothly towards its latest position.
+ *
+ * When someone aims an action at you (hug, tickle, kiss), onTargeted() tells
+ * the game, which plays your reaction — and broadcasts it, so everyone sees it.
  */
 import * as THREE from 'three';
 import { ProceduralAvatar } from './avatar.js';
-import { decodeLook, defaultLook, lookColors } from './looks.js';
+import { decodeLook, defaultLook } from './looks.js';
+import { EmotePlayer, REACTIONS } from './emotes.js';
 
 export class RemoteAvatars {
-  constructor(scene, baseColors) {
+  constructor(scene) {
     this.scene = scene;
-    this.baseColors = baseColors;
-    this.people = new Map(); // uid → { avatar, tag, target, ... }
+    this.people = new Map(); // uid → { avatar, emotes, pos, facing, speed, target, … }
+    this.selfId = null; // your uid (to recognise actions aimed at you)
     this.onEmote = () => {}; // (x, y, z) — someone pressed ♥
+    this.onTargeted = () => {}; // (reactionId, fromUid)
   }
 
-  /** `states`: Map uid → { name, look, x, z, f, s, e } (from presence.js). */
+  /** `states`: Map uid → { name, look, x, z, f, s, e, a, an, at } (from presence.js). */
   sync(states) {
     for (const [uid, state] of states) {
       let p = this.people.get(uid);
+      const isNew = !p;
       if (!p || p.lookText !== state.look) {
         if (p) this.#remove(uid);
         p = this.#add(uid, state);
       }
       p.target = state;
+      p.name = state.name;
       if (state.e && state.e !== p.lastEmote) {
         p.lastEmote = state.e;
         this.onEmote(p.pos.x, 1.5, p.pos.z);
       }
+      // Actions: a = which, an = a counter that changes on every new action, at = aimed at whom.
+      if ((state.an ?? 0) !== p.actionNonce) {
+        p.actionNonce = state.an ?? 0;
+        if (state.a) {
+          p.emotes.play(state.a, { target: state.at || null });
+          if (!isNew && state.at && state.at === this.selfId && REACTIONS[state.a]) this.onTargeted(REACTIONS[state.a], uid);
+        }
+      }
+      if (!state.a && p.emotes.active) p.emotes.stop();
     }
     for (const uid of this.people.keys()) if (!states.has(uid)) this.#remove(uid);
   }
 
-  update(dt) {
+  /**
+   * @param ctxFor (person) => emote context ({ fx, hearts, partner… }) built by the game
+   */
+  update(dt, ctxFor) {
     const k = 1 - Math.exp(-dt * 10);
     for (const p of this.people.values()) {
       const t = p.target;
@@ -44,11 +63,16 @@ export class RemoteAvatars {
       p.speed += ((t.s ?? 0) - p.speed) * k;
       p.avatar.root.position.copy(p.pos);
       p.avatar.root.rotation.y = p.facing;
-      p.avatar.update(dt, p.speed);
+      const action = p.emotes.update(dt, ctxFor(p), p.speed > 0.08);
+      p.avatar.update(dt, p.speed, action);
     }
   }
 
-  /** Positions of everyone else (for "standing close together" hearts). */
+  /** Everyone else (for "standing close together", holding hands, hugging…). */
+  list() {
+    return [...this.people.entries()].map(([uid, p]) => ({ uid, ...p }));
+  }
+
   positions() {
     return [...this.people.values()].map((p) => p.pos);
   }
@@ -59,19 +83,21 @@ export class RemoteAvatars {
 
   #add(uid, state) {
     const look = decodeLook(state.look) ?? defaultLook();
-    const avatar = new ProceduralAvatar(lookColors(look, this.baseColors), look.style);
+    const avatar = new ProceduralAvatar(look);
     const tag = nameTag(state.name);
     tag.position.y = 1.62;
     avatar.root.add(tag);
     this.scene.add(avatar.root);
     const p = {
       avatar,
+      emotes: new EmotePlayer(),
       lookText: state.look,
       pos: new THREE.Vector3(state.x, 0, state.z),
       facing: state.f ?? 0,
       speed: 0,
       target: state,
       lastEmote: state.e ?? 0, // don't replay a ♥ sent before they appeared
+      actionNonce: -1,
     };
     this.people.set(uid, p);
     return p;

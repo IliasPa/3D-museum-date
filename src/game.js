@@ -1,13 +1,14 @@
 /**
  * The game: owns the renderer, scene, avatars, camera and the main loop.
  * It knows nothing about HTML or the database — it reports what happens
- * through callbacks (onRoomChange, onFocusChange, onFinaleNear, onOpenPhoto)
- * and main.js connects those to the screen and to Firebase.
+ * through callbacks (onRoomChange, onFocusChange, onFinaleNear, onOpenPhoto,
+ * onHint, onVideoChange) and main.js connects those to the screen and Firebase.
  *
  *   const game = new Game(canvas, joystick, CONFIG);
- *   await game.setMuseum(config, photos, look);   // build (or rebuild) a museum
- *   game.run();                                   // start drawing
- *   game.start();                                 // after "Enter": hand over the controls
+ *   await game.setMuseum(config, photos, look, onProgress, videos);  // build (or rebuild)
+ *   game.run();                                                       // start drawing
+ *   game.start();                                                     // after "Enter"
+ *   game.performAction('W');                                          // A–Z actions
  */
 import * as THREE from 'three';
 import { planMuseum } from './world/layout.js';
@@ -15,16 +16,21 @@ import { buildMuseum } from './world/museum.js';
 import { buildFrames } from './world/frames.js';
 import { buildFinale } from './world/finale.js';
 import { buildDust } from './world/dust.js';
+import { buildScreens, VideoPlayer } from './world/videos.js';
 import { HeartBursts } from './world/heartBursts.js';
+import { Effects } from './world/effects.js';
 import { raycastBoxes } from './world/collision.js';
 import { createAvatar } from './player/avatar.js';
 import { PlayerController } from './player/controller.js';
 import { CameraRig } from './player/cameraRig.js';
 import { RemoteAvatars } from './player/remoteAvatars.js';
+import { EmotePlayer, EMOTES } from './player/emotes.js';
 import { Input } from './input/input.js';
 import { AdaptiveResolution } from './adaptiveResolution.js';
 
 const CLOSE_TOGETHER = 1.6; // metres — closer than this, hearts float up between you
+const CLOSE_FOR_HUG = 1.6; // hug / kiss / tickle reach
+const SIT_REACH = 1.9; // how close to a bench seat you must be to sit down
 
 export class Game {
   constructor(canvas, joystickEl, config) {
@@ -36,6 +42,8 @@ export class Game {
     this.onFocusChange = () => {};
     this.onFinaleNear = () => {};
     this.onOpenPhoto = () => {};
+    this.onHint = () => {}; // (text) — short messages like "Walk up to a bench"
+    this.onVideoChange = () => {}; // (playing, { muted }) — e.g. pause the music
 
     // ── Renderer ──
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
@@ -53,9 +61,17 @@ export class Game {
     this.input = new Input(canvas, joystickEl, config);
     this.input.onTap = (x, y) => this.#handleTap(x, y);
     this.input.onInteract = () => this.focus && this.onOpenPhoto(this.focus);
-    this.remotes = new RemoteAvatars(this.scene, config.avatar.colors);
+    this.input.onAction = (key) => this.performAction(key);
+    this.remotes = new RemoteAvatars(this.scene);
     this.hearts = new HeartBursts(this.scene);
+    this.fx = new Effects(this.scene);
     this.remotes.onEmote = (x, y, z) => this.hearts.burst(x, y, z, 10);
+    this.remotes.onTargeted = (reaction, fromUid) => this.#react(reaction, fromUid);
+    this.localEmotes = new EmotePlayer();
+    this.actionNonce = 0; // changes on every new action, so the other screen knows to play it
+    this.actionTarget = '';
+    this.video = new VideoPlayer();
+    this.video.onChange = (playing, info) => this.onVideoChange(playing, info);
     this.raycaster = new THREE.Raycaster();
 
     this.world = null; // everything belonging to the current museum
@@ -76,9 +92,11 @@ export class Game {
    * @param photos  [{ width, height, color, room, title, date, caption, url?(size) }]
    * @param look    the visitor's avatar look (looks.js)
    * @param onPhotoProgress (loaded, total) while photos download
+   * @param videos  [{ room, width, height, title, posterUrl, url() }]
    */
-  async setMuseum(config, photos, look, onPhotoProgress) {
+  async setMuseum(config, photos, look, onPhotoProgress = () => {}, videos = []) {
     this.config = config;
+    this.#standUp();
     if (this.world) {
       this.scene.remove(this.world);
       disposeObject(this.world);
@@ -86,12 +104,20 @@ export class Game {
     this.remotes.clear();
     this.world = new THREE.Group();
 
-    this.plan = planMuseum(config, photos);
+    this.plan = planMuseum(config, photos, videos);
     const museum = buildMuseum(this.plan, config, this.renderer);
     this.colliders = museum.colliders;
     this.world.add(museum.group);
 
-    this.frames = buildFrames(this.plan, config, this.renderer, onPhotoProgress);
+    this.screens = buildScreens(this.plan);
+    this.world.add(this.screens.group);
+    // Videos download after the photos, so the walls fill up first.
+    let preloaded = false;
+    const preload = () => !preloaded && (preloaded = true) && this.screens.preload();
+    this.frames = buildFrames(this.plan, config, this.renderer, (loaded, total) => {
+      onPhotoProgress(loaded, total);
+      if (loaded >= total) preload();
+    });
     this.world.add(this.frames.group);
 
     this.finale = config.finale.enabled ? buildFinale(this.plan, config.finale, this.colliders) : null;
@@ -104,6 +130,7 @@ export class Game {
     const avatar = await createAvatar(config, look);
     this.#swapAvatar(avatar);
     this.controller = new PlayerController(avatar, this.colliders, config.controls, this.plan.start);
+    this.controller.onStandRequest = () => this.#standUp();
 
     this.focus = null;
     this.roomIndex = -1;
@@ -132,6 +159,11 @@ export class Game {
     this.scene.add(avatar.root);
   }
 
+  /** Your Firebase uid (so actions aimed at you can be recognised). */
+  setSelfId(uid) {
+    this.remotes.selfId = uid;
+  }
+
   /** Start rendering (call right away — the start screen shows the museum behind it). */
   run() {
     const timer = new THREE.Timer();
@@ -158,14 +190,104 @@ export class Game {
     this.input.setEnabled(this.started && !paused);
   }
 
-  // ── Multiplayer hooks (used by main.js + backend/presence.js) ─────────
-  /** Your avatar right now: position, facing and speed. */
-  localState() {
-    const c = this.controller;
-    return { x: c.position.x, z: c.position.z, f: c.facing, s: c.speed01 };
+  // ── Actions (A–Z) ─────────────────────────────────────────────────────
+  /**
+   * Play an action by its letter. Hug, Kiss and Tickle reach the other person
+   * when they're close (Hug and Kiss: facing each other); otherwise you do a
+   * heart with your hands, blow a kiss, or tickle the air. S sits on (or gets
+   * up from) a nearby bench.
+   */
+  performAction(key) {
+    key = String(key).toUpperCase();
+    if (!this.started || this.paused || !EMOTES[key]) return;
+    if (this.localEmotes.locked) return; // let the current one finish (flips, falls…)
+    if (key === 'S') return this.#toggleSit();
+    if (this.controller.seat && !EMOTES[key].upper) this.#standUp(); // full-body actions need standing
+
+    const partner = this.#nearestPartner();
+    const close = partner && partner.dist < CLOSE_FOR_HUG;
+    let id = key;
+    let target = '';
+    if (key === 'H') close && partner.facingEachOther ? (target = partner.uid) : (id = 'heart');
+    else if (key === 'K') close && partner.facingEachOther ? (target = partner.uid) : (id = 'blowkiss');
+    else if (key === 'T') close ? (target = partner.uid) : (id = 'tickleair');
+    this.#playLocal(id, target);
   }
 
-  /** Everyone else, from presence.js: Map uid → { name, look, x, z, f, s, e }. */
+  #playLocal(id, target = '') {
+    if (!this.localEmotes.play(id, { target })) return;
+    this.actionNonce++;
+    this.actionTarget = target;
+  }
+
+  /** Someone hugged / tickled / kissed you: play your reaction (and broadcast it). */
+  #react(reaction, fromUid) {
+    if (!this.started) return;
+    const from = this.remotes.people.get(fromUid);
+    if (from && reaction !== 'tickled') {
+      // Turn to face them.
+      this.controller.facing = Math.atan2(from.pos.x - this.controller.position.x, from.pos.z - this.controller.position.z);
+    }
+    if (this.controller.seat && reaction !== 'kissed') this.#standUp();
+    this.#playLocal(reaction, fromUid);
+  }
+
+  // ── Sitting on benches (and watching videos) ─────────────────────────
+  #toggleSit() {
+    if (this.controller.seat) return this.#standUp();
+    const found = this.#freeSeat();
+    if (!found) {
+      this.onHint('Walk up to a bench to sit down 🪑');
+      return;
+    }
+    const { seat, bench } = found;
+    this.controller.sit({ x: seat.x, z: seat.z, facing: bench.facing > 0 ? Math.PI / 2 : -Math.PI / 2 });
+    this.#playLocal('S');
+    const screen = this.screens.items.find((i) => i.bench === bench);
+    if (screen) {
+      // Play inside this very keypress/tap, so phones allow the sound.
+      this.video.play(screen);
+      const s = bench.screen;
+      this.rig.setShot({
+        position: new THREE.Vector3(bench.x - bench.facing * 1.7, 1.75, bench.z),
+        target: new THREE.Vector3(s.x, s.y - 0.1, s.z),
+      });
+    }
+  }
+
+  #standUp() {
+    if (!this.controller?.seat) return;
+    this.controller.stand();
+    if (this.localEmotes.id === 'S') this.localEmotes.stop();
+    this.video.stop();
+    this.rig.setShot(null);
+  }
+
+  /** The nearest free bench seat within reach. */
+  #freeSeat() {
+    const pos = this.controller.position;
+    const others = this.remotes.positions();
+    let best = null;
+    for (const bench of this.plan.benches) {
+      for (const seat of bench.seats) {
+        const d = Math.hypot(seat.x - pos.x, seat.z - pos.z);
+        if (d > SIT_REACH) continue;
+        if (others.some((q) => Math.hypot(q.x - seat.x, q.z - seat.z) < 0.4)) continue; // taken
+        if (!best || d < best.d) best = { seat, bench, d };
+      }
+    }
+    return best;
+  }
+
+  // ── Multiplayer hooks (used by main.js + backend/presence.js) ─────────
+  /** Your avatar right now: position, facing, speed and current action. */
+  localState() {
+    const c = this.controller;
+    const a = this.localEmotes.id;
+    return { x: c.position.x, z: c.position.z, f: c.facing, s: c.speed01, a, an: this.actionNonce, at: a ? this.actionTarget : '' };
+  }
+
+  /** Everyone else, from presence.js: Map uid → { name, look, x, z, f, s, e, a, an, at }. */
   setPeople(states) {
     this.remotes.sync(states);
   }
@@ -174,6 +296,32 @@ export class Game {
   emote() {
     const p = this.controller.position;
     this.hearts.burst(p.x, 1.5, p.z, 10);
+  }
+
+  /** The closest other person, with where they are relative to you. */
+  #nearestPartner() {
+    const me = this.controller;
+    let best = null;
+    for (const o of this.remotes.list()) {
+      const dx = o.pos.x - me.position.x;
+      const dz = o.pos.z - me.position.z;
+      const dist = Math.hypot(dx, dz);
+      if (best && dist >= best.dist) continue;
+      const ux = dx / (dist || 1);
+      const uz = dz / (dist || 1);
+      const iFace = Math.sin(me.facing) * ux + Math.cos(me.facing) * uz;
+      const theyFace = -(Math.sin(o.facing) * ux + Math.cos(o.facing) * uz);
+      best = { uid: o.uid, person: o, dist, facingEachOther: iFace > 0.4 && theyFace > 0.4 };
+    }
+    return best;
+  }
+
+  /** Context handed to the action animations (effects, who's nearby…). */
+  #emoteCtx(avatar, position, facing, other) {
+    return {
+      avatar, fx: this.fx, hearts: this.hearts, position, facing,
+      partner: other ? { position: other, angle: relativeAngle(position, facing, other) } : null,
+    };
   }
 
   #tick(dt) {
@@ -194,16 +342,27 @@ export class Game {
     }
 
     const look = this.input.consumeLook();
-    if (look.x || look.y) this.rig.rotate(look.x, look.y);
+    if ((look.x || look.y) && !this.rig.inShot) this.rig.rotate(look.x, look.y);
     const zoom = this.input.consumeZoom();
     if (zoom) this.rig.zoom(zoom);
 
-    this.controller.update(dt, this.input.move, this.input.run, this.rig.yaw);
-    const pos = this.controller.position;
+    // Your avatar: walking, then its action on top.
+    const c = this.controller;
+    c.locked = this.localEmotes.locked;
+    c.speedFactor = this.localEmotes.id === 'Z' ? 0.55 : 1;
+    c.update(dt, this.input.move, this.input.run, this.rig.yaw);
+    const pos = c.position;
+    this.#holdHands();
+    const partner = this.#nearestPartner();
+    const action = this.localEmotes.update(dt, this.#emoteCtx(this.avatar, pos, c.facing, partner?.person.pos), c.speed01 > 0.08);
+    this.avatar.update(dt, c.speed01, action);
+
+    // Everyone else.
+    this.remotes.update(dt, (p) => this.#emoteCtx(p.avatar, p.pos, p.facing, pos));
     this.rig.update(dt, pos, this.colliders);
-    this.remotes.update(dt);
     this.#heartsWhenClose(dt, pos);
     this.hearts.update(dt, this.camera);
+    this.fx.update(dt);
 
     this.#updateRoom(pos);
     this.#updateFocus(pos);
@@ -219,6 +378,52 @@ export class Game {
 
     if (this.resolution.update(dt)) this.#resize();
     if (!this.paused) this.renderer.render(this.scene, this.camera);
+  }
+
+  /**
+   * Side by side (standing, walking or sitting next to each other)? Hold
+   * hands: each reaches for a point between your shoulders. Both screens work
+   * this out the same way, so both see it.
+   */
+  #holdHands() {
+    const me = this.avatar;
+    if (!me.setHandTarget) return;
+    me.setHandTarget(0, null);
+    me.setHandTarget(1, null);
+    const others = this.remotes.list();
+    for (const o of others) {
+      o.avatar.setHandTarget(0, null);
+      o.avatar.setHandTarget(1, null);
+    }
+    const free = (id) => !id || id === 'S';
+    let pair = null;
+    if (this.started && free(this.localEmotes.id)) {
+      const c = this.controller;
+      for (const o of others) {
+        if (!free(o.emotes.id)) continue;
+        const dx = o.pos.x - c.position.x;
+        const dz = o.pos.z - c.position.z;
+        const d = Math.hypot(dx, dz);
+        if (d < 0.45 || d > 1.25) continue;
+        const ux = dx / d;
+        const uz = dz / d;
+        const myFwd = [Math.sin(c.facing), Math.cos(c.facing)];
+        const theirFwd = [Math.sin(o.facing), Math.cos(o.facing)];
+        const sideBySide = Math.abs(myFwd[0] * ux + myFwd[1] * uz) < 0.55 && myFwd[0] * theirFwd[0] + myFwd[1] * theirFwd[1] > 0.3;
+        if (!sideBySide || (pair && d > pair.d)) continue;
+        // Which hand: the one on the other person's side. Right = (−cos f, sin f).
+        const mySide = -Math.cos(c.facing) * ux + Math.sin(c.facing) * uz > 0 ? 0 : 1;
+        const theirSide = -Math.cos(o.facing) * -ux + Math.sin(o.facing) * -uz > 0 ? 0 : 1;
+        pair = { o, d, mySide, theirSide };
+      }
+    }
+    if (!pair) return;
+    const a = me.shoulderWorld(pair.mySide);
+    const b = pair.o.avatar.shoulderWorld(pair.theirSide);
+    const meet = a.lerp(b, 0.5);
+    meet.y -= 0.22;
+    me.setHandTarget(pair.mySide, meet.clone(), 1);
+    pair.o.avatar.setHandTarget(pair.theirSide, meet.clone(), 1);
   }
 
   /** Standing close to someone? Little hearts float up between you. */
@@ -273,6 +478,7 @@ export class Game {
 
   /** Tap / click: open the photo under the pointer (if no wall is in the way). */
   #handleTap(clientX, clientY) {
+    if (this.video.mutedFallback) return this.video.unmute(); // first tap after a silent video start: sound on
     const rect = this.canvas.getBoundingClientRect();
     const ndc = new THREE.Vector2(((clientX - rect.left) / rect.width) * 2 - 1, -((clientY - rect.top) / rect.height) * 2 + 1);
     this.raycaster.setFromCamera(ndc, this.camera);
@@ -298,6 +504,12 @@ export class Game {
     this.camera.fov = this.config.camera.fov + (w < h ? 12 : 0);
     this.camera.updateProjectionMatrix();
   }
+}
+
+/** Angle from `facing` to the direction of `to` (0 = straight ahead), −π…π. */
+function relativeAngle(from, facing, to) {
+  const a = Math.atan2(to.x - from.x, to.z - from.z) - facing;
+  return Math.atan2(Math.sin(a), Math.cos(a));
 }
 
 /** Free the GPU memory of everything under `root`. */

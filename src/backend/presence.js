@@ -16,7 +16,7 @@ const STALE_MS = 30000; // forget people we haven't heard from in 30 s
  * @param name      shown above your avatar
  * @param look      encoded look string (looks.js)
  * @param publish   false = watch only (e.g. the curator peeking in)
- * @param getState  () => { x, z, f, s } — your avatar right now
+ * @param getState  () => { x, z, f, s, a, an, at } — your avatar right now (+ its action)
  * @param onPeople  (Map uid → state) — everyone else, whenever it changes
  */
 export async function joinPresence({ museumId, user, name, look, publish, getState, onPeople }) {
@@ -61,11 +61,15 @@ export async function joinPresence({ museumId, user, name, look, publish, getSta
     const send = () => {
       const s = getState();
       const now = Date.now();
-      const changed = !last || Math.hypot(s.x - last.x, s.z - last.z) > 0.02 || Math.abs(s.f - last.f) > 0.03 || Math.abs(s.s - last.s) > 0.04;
+      const changed = !last || Math.hypot(s.x - last.x, s.z - last.z) > 0.02 || Math.abs(s.f - last.f) > 0.03 ||
+        Math.abs(s.s - last.s) > 0.04 || s.an !== last.an || s.a !== last.a;
       if (!changed && now - lastSent < HEARTBEAT_MS) return;
       last = s;
       lastSent = now;
-      const data = { name, look, x: round(s.x), z: round(s.z), f: round(s.f, 3), s: round(s.s), t: rt.serverTimestamp() };
+      const data = {
+        name, look, x: round(s.x), z: round(s.z), f: round(s.f, 3), s: round(s.s),
+        a: s.a ?? '', an: s.an ?? 0, at: s.at ?? '', t: rt.serverTimestamp(),
+      };
       if (emote) data.e = emote;
       rt.set(meRef, data).catch((err) => console.warn('[presence] could not send position:', err.message));
     };

@@ -53,6 +53,14 @@ export class GltfAvatar {
     this.speed = 0;
   }
 
+  // A .glb character keeps its own animations: actions show their bubbles and
+  // effects, but don't pose the body, and it doesn't hold hands.
+  setHandTarget() {}
+
+  shoulderWorld(side, out) {
+    return this.root.getWorldPosition(out ?? this.root.position.clone()).setY(0.9);
+  }
+
   update(dt, speed01) {
     this.speed += (speed01 - this.speed) * Math.min(1, dt * 8);
     const s = this.speed;

@@ -210,20 +210,13 @@ function buildFurniture(plan, colliders) {
   };
   const put = (part, geo, x, y, z) => parts[part].geos.push(geo.translate(x, y, z));
 
+  // Benches (placed by layout.js — videos hang in front of them).
+  for (const { x, z } of plan.benches) {
+    put('seat', new THREE.BoxGeometry(0.55, 0.08, 2.2), x, 0.46, z);
+    for (const dz of [-0.9, 0.9]) put('leg', new THREE.BoxGeometry(0.5, 0.42, 0.07), x, 0.21, z + dz);
+    colliders.push({ minX: x - 0.3, maxX: x + 0.3, minY: 0, maxY: 0.5, minZ: z - 1.12, maxZ: z + 1.12, bench: true });
+  }
   for (const room of plan.rooms) {
-    if (!room.isFinale && room.depth >= 10) {
-      // One pair of benches per ~10 m of room length, evenly spread.
-      const pairs = Math.max(1, Math.floor(room.depth / 10));
-      for (let k = 0; k < pairs; k++) {
-        const z = room.z0 + (room.depth * (k + 0.5)) / pairs;
-        for (const side of [-1, 1]) {
-          const x = room.cx + side * 2.3;
-          put('seat', new THREE.BoxGeometry(0.55, 0.08, 2.2), x, 0.46, z);
-          for (const dz of [-0.9, 0.9]) put('leg', new THREE.BoxGeometry(0.5, 0.42, 0.07), x, 0.21, z + dz);
-          colliders.push({ minX: x - 0.3, maxX: x + 0.3, minY: 0, maxY: 0.5, minZ: z - 1.12, maxZ: z + 1.12 });
-        }
-      }
-    }
     // Plants in the two far (north) corners.
     for (const [px, pz] of [[room.x0 + 0.55, room.z0 + 0.55], [room.x1 - 0.55, room.z0 + 0.55]]) {
       put('pot', new THREE.CylinderGeometry(0.28, 0.22, 0.55, 12), px, 0.275, pz);

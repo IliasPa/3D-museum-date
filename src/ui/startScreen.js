@@ -3,10 +3,8 @@
  *   signin → busy → (denied | choose) → ready (pick your look, then "Enter")
  * The "Enter" button also unlocks audio on iPhone.
  */
-import { LOOK_OPTIONS } from '../player/looks.js';
+import { LOOK_OPTIONS, LOOK_LABELS, LOOK_GROUPS, randomLook } from '../player/looks.js';
 import { AvatarPreview } from './avatarPreview.js';
-
-const STYLE_LABELS = { short: 'Short', long: 'Long', bun: 'Bun' };
 
 export class StartScreen {
   constructor(el, config, isTouch) {
@@ -17,8 +15,8 @@ export class StartScreen {
     this.status = el.querySelector('.start-status');
     this.account = el.querySelector('.start-account');
     el.querySelector('.start-hint').textContent = isTouch
-      ? 'Left thumb to walk · swipe to look around · tap a photo to open it'
-      : 'WASD or arrow keys to walk · drag to look around · click a photo to open it';
+      ? 'Left thumb to walk · swipe to look around · tap a photo · 😊 for actions'
+      : 'Arrow keys to walk · drag to look around · Space opens a photo · A–Z for actions';
     this.setTitle(config.title, config.subtitle);
   }
 
@@ -86,8 +84,9 @@ export class StartScreen {
   }
 
   /** Several museums: let the visitor pick one. Resolves with the chosen one. */
-  choose(museums) {
+  choose(museums, message = 'Which museum would you like to visit?') {
     this.show('choose');
+    this.el.querySelector('[data-step="choose"] .start-message').textContent = message;
     const list = this.el.querySelector('.start-choices');
     list.replaceChildren();
     return new Promise((resolve) => {
@@ -130,42 +129,84 @@ export class StartScreen {
     const current = { ...look };
     const container = this.el.querySelector('.look-options');
     container.replaceChildren();
-    const rows = [['shirt', 'Sweater'], ['hair', 'Hair'], ['skin', 'Skin'], ['style', 'Hairstyle']];
-    for (const [kind, label] of rows) {
-      const row = document.createElement('div');
-      row.className = 'look-row';
-      const name = document.createElement('span');
-      name.textContent = label;
-      const options = document.createElement('div');
-      options.className = 'look-swatches';
-      for (const value of LOOK_OPTIONS[kind]) {
-        const b = document.createElement('button');
-        b.type = 'button';
-        b.className = kind === 'style' ? 'look-style' : 'look-swatch';
-        if (kind === 'style') b.textContent = STYLE_LABELS[value];
-        else b.style.setProperty('--swatch', value);
-        b.setAttribute('aria-label', `${label} ${kind === 'style' ? STYLE_LABELS[value] : value}`);
-        b.setAttribute('aria-pressed', String(current[kind] === value));
-        b.onclick = () => {
-          current[kind] = value;
-          for (const other of options.children) other.setAttribute('aria-pressed', String(other === b));
-          this.preview?.setLook(current);
-          onLookChange({ ...current });
-        };
-        options.append(b);
-      }
-      row.append(name, options);
-      container.append(row);
+    const tabs = document.createElement('div');
+    tabs.className = 'look-tabs';
+    const rows = document.createElement('div');
+    rows.className = 'look-rows';
+    container.append(tabs, rows);
+
+    const changed = (emote) => {
+      this.preview?.setLook(current, emote);
+      onLookChange({ ...current });
+    };
+    const showGroup = (group) => {
+      for (const t of tabs.querySelectorAll('[data-group]')) t.setAttribute('aria-selected', String(t.dataset.group === group.name));
+      rows.replaceChildren(...group.fields.map(([field, label]) => this.#lookRow(field, label, current, changed)));
+    };
+    for (const group of LOOK_GROUPS) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'look-tab';
+      b.dataset.group = group.name;
+      b.textContent = group.name;
+      b.onclick = () => showGroup(group);
+      tabs.append(b);
     }
+    const dice = document.createElement('button');
+    dice.type = 'button';
+    dice.className = 'look-tab look-random';
+    dice.textContent = '🎲';
+    dice.title = 'Surprise me';
+    dice.setAttribute('aria-label', 'Random look');
+    dice.onclick = () => {
+      Object.assign(current, randomLook());
+      showGroup(LOOK_GROUPS.find((g) => g.name === tabs.querySelector('[aria-selected="true"]').dataset.group));
+      changed('J');
+    };
+    tabs.append(dice);
+    showGroup(LOOK_GROUPS[0]);
+
     // Little turning avatar next to the options.
     if (!this.preview) {
       try {
-        this.preview = new AvatarPreview(this.el.querySelector('.look-preview'), this.config.avatar.colors);
+        this.preview = new AvatarPreview(this.el.querySelector('.look-preview'));
         this.preview.start();
       } catch {
         this.el.querySelector('.look-preview').hidden = true; // no WebGL to spare: options still work
       }
     }
-    this.preview?.setLook(current);
+    this.preview?.setLook(current, 'W');
+  }
+
+  /** One row of the picker: colour swatches, or named options. */
+  #lookRow(field, label, current, changed) {
+    const row = document.createElement('div');
+    row.className = 'look-row';
+    const name = document.createElement('span');
+    name.textContent = label;
+    const options = document.createElement('div');
+    options.className = 'look-swatches';
+    const names = LOOK_LABELS[field];
+    for (const value of LOOK_OPTIONS[field]) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      if (names) {
+        b.className = 'look-style';
+        b.textContent = names[value];
+      } else {
+        b.className = 'look-swatch';
+        b.style.setProperty('--swatch', value);
+      }
+      b.setAttribute('aria-label', `${label}: ${names ? names[value] : value}`);
+      b.setAttribute('aria-pressed', String(current[field] === value));
+      b.onclick = () => {
+        current[field] = value;
+        for (const other of options.children) other.setAttribute('aria-pressed', String(other === b));
+        changed('V');
+      };
+      options.append(b);
+    }
+    row.append(name, options);
+    return row;
   }
 }
