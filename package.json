@@ -1,0 +1,22 @@
+{
+  "name": "our-museum",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "A tiny 3D art museum of our photos — a gift.",
+  "scripts": {
+    "dev": "vite --host",
+    "build": "vite build",
+    "preview": "vite preview --host",
+    "photos": "node scripts/photos.mjs"
+  },
+  "dependencies": {
+    "@fontsource/eb-garamond": "^5.3.0",
+    "@fontsource/manrope": "^5.3.0",
+    "three": "^0.186.1"
+  },
+  "devDependencies": {
+    "sharp": "^0.35.5",
+    "vite": "^8.3.5"
+  }
+}

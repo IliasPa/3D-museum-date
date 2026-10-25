@@ -1,0 +1,72 @@
+[
+  {
+    "file": "placeholder-01.jpg",
+    "room": 1,
+    "title": "The first hello",
+    "date": "Spring 2019",
+    "caption": "Replace this with the story of the moment we met."
+  },
+  {
+    "file": "placeholder-02.jpg",
+    "room": 1,
+    "title": "Our first date",
+    "date": "May 2019",
+    "caption": "Two coffees, three hours, zero awkward silences."
+  },
+  {
+    "file": "placeholder-03.jpg",
+    "room": 1,
+    "title": "Our first photo together",
+    "date": "June 2019",
+    "caption": "The one where we both blinked, and kept it anyway."
+  },
+  {
+    "file": "placeholder-04.jpg",
+    "room": 2,
+    "title": "The mountains",
+    "date": "August 2020",
+    "caption": "You said it was a short hike. It was not a short hike."
+  },
+  {
+    "file": "placeholder-05.jpg",
+    "room": 2,
+    "title": "By the sea",
+    "date": "July 2021",
+    "caption": "Sunsets are better with you narrating them."
+  },
+  {
+    "file": "placeholder-06.jpg",
+    "room": 2,
+    "title": "City lights",
+    "date": "December 2022",
+    "caption": "Lost, cold, and laughing about it."
+  },
+  {
+    "file": "placeholder-07.jpg",
+    "room": 2,
+    "title": "Road trip",
+    "date": "Summer 2023",
+    "caption": "Our playlist, the open road, and too many snacks."
+  },
+  {
+    "file": "placeholder-08.jpg",
+    "room": 3,
+    "title": "Sunday mornings",
+    "date": "2024",
+    "caption": "Slow coffee and your terrible jokes. My favourite."
+  },
+  {
+    "file": "placeholder-09.jpg",
+    "room": 3,
+    "title": "Our home",
+    "date": "2025",
+    "caption": "Where every day starts and ends with you."
+  },
+  {
+    "file": "placeholder-10.jpg",
+    "room": 3,
+    "title": "Still us",
+    "date": "Today",
+    "caption": "And still my favourite person in every room."
+  }
+]

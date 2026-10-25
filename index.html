@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+    <meta name="theme-color" content="#2b1a1e" />
+    <meta name="description" content="A tiny 3D museum of us." />
+    <!-- A private gift: keep it out of search engines -->
+    <meta name="robots" content="noindex, nofollow" />
+    <!-- Full-screen when added to the iPhone / Android home screen -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Our Museum" />
+    <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <title>Our Museum</title>
+  </head>
+  <body>
+    <!-- The 3D museum is drawn here -->
+    <canvas id="scene" tabindex="-1"></canvas>
+
+    <!-- Start screen (texts come from src/config.js) -->
+    <section id="start" class="start">
+      <div class="start-hearts" aria-hidden="true">
+        <i>♥</i><i>♥</i><i>♥</i><i>♥</i><i>♥</i><i>♥</i><i>♥</i><i>♥</i><i>♥</i>
+      </div>
+      <div class="start-card">
+        <p class="start-eyebrow">welcome to</p>
+        <h1 class="start-title"></h1>
+        <p class="start-subtitle"></p>
+        <button class="start-enter" type="button" disabled>Loading…</button>
+        <p class="start-status" aria-live="polite"></p>
+        <p class="start-hint"></p>
+      </div>
+    </section>
+
+    <!-- In-game overlay -->
+    <div id="hud" class="hud" hidden>
+      <div class="hud-room"></div>
+      <button class="hud-mute" type="button" aria-label="Mute music" hidden>
+        <svg class="icon-on" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+        <svg class="icon-off" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M17 9.5l5 5m0-5l-5 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      </button>
+      <div class="hud-toast" aria-live="polite"></div>
+      <div class="hud-hint"></div>
+    </div>
+
+    <!-- Virtual joystick (touch screens only; purely visual — input.js does the work) -->
+    <div class="joystick" hidden><div class="joystick-knob"></div></div>
+
+    <!-- Caption card shown when you stand near a photo -->
+    <button id="placard" class="placard" type="button" hidden>
+      <span class="placard-date"></span>
+      <span class="placard-title"></span>
+      <span class="placard-caption"></span>
+      <span class="placard-cta"></span>
+    </button>
+
+    <!-- Full-screen photo viewer -->
+    <div id="lightbox" class="lightbox" role="dialog" aria-modal="true" aria-label="Photo" hidden>
+      <div class="lightbox-stage"><img class="lightbox-img" alt="" /></div>
+      <div class="lightbox-info">
+        <p class="lightbox-date"></p>
+        <h2 class="lightbox-title"></h2>
+        <p class="lightbox-caption"></p>
+        <p class="lightbox-counter"></p>
+      </div>
+      <button class="lightbox-close" type="button" aria-label="Close">×</button>
+      <button class="lightbox-prev" type="button" aria-label="Previous photo">‹</button>
+      <button class="lightbox-next" type="button" aria-label="Next photo">›</button>
+    </div>
+
+    <!-- The personal message (last room) -->
+    <div id="letter" class="letter" hidden>
+      <article class="letter-card">
+        <button class="letter-close" type="button" aria-label="Close">×</button>
+        <h2 class="letter-title"></h2>
+        <div class="letter-heart" aria-hidden="true">♥</div>
+        <p class="letter-message"></p>
+        <p class="letter-signature"></p>
+      </article>
+    </div>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

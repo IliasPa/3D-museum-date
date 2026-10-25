@@ -1,0 +1,114 @@
+{
+  "photos": [
+    {
+      "src": "gallery/placeholder-01-a67c0d.02c5b89b.md.jpg",
+      "full": "gallery/placeholder-01-a67c0d.02c5b89b.lg.jpg",
+      "width": 1024,
+      "height": 768,
+      "color": "#f8a8a8",
+      "room": 1,
+      "title": "The first hello",
+      "date": "Spring 2019",
+      "caption": "Replace this with the story of the moment we met."
+    },
+    {
+      "src": "gallery/placeholder-02-063e61.e42ad0d3.md.jpg",
+      "full": "gallery/placeholder-02-063e61.e42ad0d3.lg.jpg",
+      "width": 768,
+      "height": 1024,
+      "color": "#e8a888",
+      "room": 1,
+      "title": "Our first date",
+      "date": "May 2019",
+      "caption": "Two coffees, three hours, zero awkward silences."
+    },
+    {
+      "src": "gallery/placeholder-03-2617ba.8601bda7.md.jpg",
+      "full": "gallery/placeholder-03-2617ba.8601bda7.lg.jpg",
+      "width": 1024,
+      "height": 1024,
+      "color": "#d898b8",
+      "room": 1,
+      "title": "Our first photo together",
+      "date": "June 2019",
+      "caption": "The one where we both blinked, and kept it anyway."
+    },
+    {
+      "src": "gallery/placeholder-04-519d10.66cf1170.md.jpg",
+      "full": "gallery/placeholder-04-519d10.66cf1170.lg.jpg",
+      "width": 1024,
+      "height": 683,
+      "color": "#586888",
+      "room": 2,
+      "title": "The mountains",
+      "date": "August 2020",
+      "caption": "You said it was a short hike. It was not a short hike."
+    },
+    {
+      "src": "gallery/placeholder-05-09ee64.7f2c574b.md.jpg",
+      "full": "gallery/placeholder-05-09ee64.7f2c574b.lg.jpg",
+      "width": 1024,
+      "height": 576,
+      "color": "#3878a8",
+      "room": 2,
+      "title": "By the sea",
+      "date": "July 2021",
+      "caption": "Sunsets are better with you narrating them."
+    },
+    {
+      "src": "gallery/placeholder-06-e0733a.9f780938.md.jpg",
+      "full": "gallery/placeholder-06-e0733a.9f780938.lg.jpg",
+      "width": 768,
+      "height": 1024,
+      "color": "#282848",
+      "room": 2,
+      "title": "City lights",
+      "date": "December 2022",
+      "caption": "Lost, cold, and laughing about it."
+    },
+    {
+      "src": "gallery/placeholder-07-67e91f.5e82fbac.md.jpg",
+      "full": "gallery/placeholder-07-67e91f.5e82fbac.lg.jpg",
+      "width": 1024,
+      "height": 768,
+      "color": "#789868",
+      "room": 2,
+      "title": "Road trip",
+      "date": "Summer 2023",
+      "caption": "Our playlist, the open road, and too many snacks."
+    },
+    {
+      "src": "gallery/placeholder-08-d819da.573135a5.md.jpg",
+      "full": "gallery/placeholder-08-d819da.573135a5.lg.jpg",
+      "width": 1024,
+      "height": 768,
+      "color": "#f8d8c8",
+      "room": 3,
+      "title": "Sunday mornings",
+      "date": "2024",
+      "caption": "Slow coffee and your terrible jokes. My favourite."
+    },
+    {
+      "src": "gallery/placeholder-09-e50954.1162cd1d.md.jpg",
+      "full": "gallery/placeholder-09-e50954.1162cd1d.lg.jpg",
+      "width": 819,
+      "height": 1024,
+      "color": "#f8f8e8",
+      "room": 3,
+      "title": "Our home",
+      "date": "2025",
+      "caption": "Where every day starts and ends with you."
+    },
+    {
+      "src": "gallery/placeholder-10-ff7f25.1e0de2c1.md.jpg",
+      "full": "gallery/placeholder-10-ff7f25.1e0de2c1.lg.jpg",
+      "width": 1024,
+      "height": 1024,
+      "color": "#e8a8b8",
+      "room": 3,
+      "title": "Still us",
+      "date": "Today",
+      "caption": "And still my favourite person in every room."
+    }
+  ]
+}

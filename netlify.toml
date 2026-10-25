@@ -1,0 +1,19 @@
+# Netlify settings (used when you connect a Git repository — not needed for drag & drop).
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "22"
+
+# A private gift: ask search engines not to list it.
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Robots-Tag = "noindex, nofollow"
+
+# Bundled code and fonts have unique names, so browsers can cache them forever.
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"

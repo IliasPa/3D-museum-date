@@ -1,0 +1,10 @@
+node_modules/
+dist/
+.DS_Store
+
+# Your original photos stay on your computer — they're big and can contain
+# GPS location. Only photos.json and the small, cleaned-up copies in
+# public/gallery/ (made by `npm run dev` / `npm run build`) are committed,
+# and that's all the build server needs.
+photos/*
+!photos/photos.json

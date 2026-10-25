@@ -1,0 +1,661 @@
+/* ────────────────────────────────────────────────────────────────
+   Colours & fonts — tweak these to restyle every screen at once.
+   ──────────────────────────────────────────────────────────────── */
+:root {
+  --ink: #2e2220;
+  --muted: #7b6a65;
+  --wine: #8e1530;
+  --rose: #e0607e;
+  --blush: #f8d7dc;
+  --cream: #fff8f1;
+  --gold: #d9b36c;
+  --glass: rgba(255, 250, 244, 0.86);
+  --serif: 'EB Garamond', Georgia, 'Times New Roman', serif;
+  --sans: Manrope, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+}
+
+[hidden] {
+  display: none !important;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: #1a1214;
+  color: var(--ink);
+  font-family: var(--sans);
+  /* Behave like an app, not a web page, on phones. */
+  overscroll-behavior: none;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-text-size-adjust: 100%;
+}
+
+#scene {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  touch-action: none;
+  outline: none;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+/* ── Start screen ─────────────────────────────────────────────── */
+.start {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  padding: calc(var(--safe-top) + 24px) calc(var(--safe-right) + 24px) calc(var(--safe-bottom) + 24px) calc(var(--safe-left) + 24px);
+  background:
+    radial-gradient(ellipse at 50% 42%, rgba(255, 248, 241, 0.9) 0%, rgba(252, 226, 226, 0.88) 45%, rgba(214, 140, 160, 0.92) 100%);
+  transition: opacity 0.9s ease, transform 0.9s ease;
+  overflow: hidden;
+}
+
+.start.leaving {
+  opacity: 0;
+  transform: scale(1.04);
+  pointer-events: none;
+}
+
+.start-card {
+  position: relative;
+  text-align: center;
+  max-width: 34rem;
+}
+
+.start-eyebrow {
+  margin: 0;
+  font-size: 0.8rem;
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.start-title {
+  margin: 0.1em 0 0;
+  font-family: var(--serif);
+  font-weight: 500;
+  font-size: clamp(2.4rem, min(14vw, 13vh), 6.5rem); /* fits phones in portrait and landscape */
+  line-height: 1;
+  color: var(--wine);
+  letter-spacing: 0.01em;
+}
+
+.start-subtitle {
+  margin: 0.5em 0 2.2em;
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: clamp(1.15rem, 4.5vw, 1.5rem);
+  color: var(--ink);
+}
+
+.start-enter {
+  min-width: 11rem;
+  padding: 0.95em 2.8em;
+  border: 0;
+  border-radius: 999px;
+  background: var(--wine);
+  color: var(--cream);
+  font-family: var(--serif);
+  font-size: 1.35rem;
+  letter-spacing: 0.06em;
+  box-shadow: 0 10px 30px rgba(142, 21, 48, 0.32);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease, opacity 0.3s;
+}
+
+.start-enter:not(:disabled):hover {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 34px rgba(142, 21, 48, 0.4);
+}
+
+.start-enter:not(:disabled):active {
+  transform: translateY(1px) scale(0.98);
+}
+
+.start-enter:focus-visible {
+  outline: 3px solid var(--gold);
+  outline-offset: 4px;
+}
+
+.start-enter:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.start-status {
+  min-height: 1.3em;
+  margin: 1.2em 0 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.start-status.error {
+  color: var(--wine);
+  font-size: 1rem;
+}
+
+.start-hint {
+  margin: 0.4em 0 0;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+/* Short screens (phones in landscape): tighten the start screen so "Enter" stays visible. */
+@media (max-height: 500px) {
+  .start-subtitle {
+    margin-bottom: 1.1em;
+  }
+
+  .start-enter {
+    padding: 0.7em 2.4em;
+    font-size: 1.2rem;
+  }
+
+  .start-status,
+  .start-hint {
+    margin-top: 0.5em;
+  }
+}
+
+/* Little hearts drifting up behind the title */
+.start-hearts i {
+  position: absolute;
+  bottom: -2rem;
+  font-style: normal;
+  color: var(--rose);
+  opacity: 0;
+  animation: float-up 9s linear infinite;
+}
+
+.start-hearts i:nth-child(1) { left: 8%; font-size: 1.4rem; animation-delay: 0s; }
+.start-hearts i:nth-child(2) { left: 20%; font-size: 0.9rem; animation-delay: 3.4s; }
+.start-hearts i:nth-child(3) { left: 32%; font-size: 1.8rem; animation-delay: 6.1s; }
+.start-hearts i:nth-child(4) { left: 46%; font-size: 1rem; animation-delay: 1.7s; }
+.start-hearts i:nth-child(5) { left: 58%; font-size: 1.5rem; animation-delay: 4.8s; }
+.start-hearts i:nth-child(6) { left: 70%; font-size: 0.8rem; animation-delay: 7.5s; }
+.start-hearts i:nth-child(7) { left: 80%; font-size: 1.6rem; animation-delay: 2.6s; }
+.start-hearts i:nth-child(8) { left: 91%; font-size: 1.1rem; animation-delay: 5.6s; }
+.start-hearts i:nth-child(9) { left: 64%; font-size: 2.1rem; animation-delay: 8.3s; }
+
+@keyframes float-up {
+  0% { transform: translateY(0) rotate(-10deg); opacity: 0; }
+  10% { opacity: 0.55; }
+  80% { opacity: 0.4; }
+  100% { transform: translateY(-105vh) rotate(12deg); opacity: 0; }
+}
+
+/* ── HUD ──────────────────────────────────────────────────────── */
+.hud {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  pointer-events: none;
+}
+
+.hud-room {
+  position: absolute;
+  top: calc(var(--safe-top) + 12px);
+  left: calc(var(--safe-left) + 12px);
+  padding: 0.45em 1em;
+  border-radius: 999px;
+  background: var(--glass);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  font-family: var(--serif);
+  font-size: 1.05rem;
+  color: var(--wine);
+  box-shadow: 0 4px 16px rgba(40, 20, 20, 0.12);
+}
+
+.hud-room:empty {
+  display: none;
+}
+
+.hud-mute {
+  position: absolute;
+  top: calc(var(--safe-top) + 10px);
+  right: calc(var(--safe-right) + 12px);
+  width: 46px;
+  height: 46px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: var(--glass);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  color: var(--wine);
+  box-shadow: 0 4px 16px rgba(40, 20, 20, 0.12);
+  pointer-events: auto;
+}
+
+.hud-mute svg {
+  width: 24px;
+  height: 24px;
+  fill: currentColor;
+}
+
+.hud-mute .icon-off,
+.hud-mute.muted .icon-on {
+  display: none;
+}
+
+.hud-mute.muted .icon-off {
+  display: block;
+}
+
+.hud-toast {
+  position: absolute;
+  top: 24%;
+  left: 50%;
+  transform: translateX(-50%);
+  text-align: center;
+  color: var(--cream);
+  text-shadow: 0 2px 18px rgba(40, 10, 20, 0.55);
+  opacity: 0;
+  white-space: nowrap;
+}
+
+.hud-toast span {
+  display: block;
+  font-size: 0.8rem;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+}
+
+.hud-toast strong {
+  display: block;
+  font-family: var(--serif);
+  font-weight: 500;
+  font-size: clamp(2.2rem, 9vw, 3.8rem);
+}
+
+.hud-toast.show {
+  animation: toast 3.4s ease forwards;
+}
+
+@keyframes toast {
+  0% { opacity: 0; transform: translate(-50%, 10px); }
+  15% { opacity: 1; transform: translate(-50%, 0); }
+  75% { opacity: 1; }
+  100% { opacity: 0; transform: translate(-50%, -6px); }
+}
+
+.hud-hint {
+  position: absolute;
+  top: calc(var(--safe-top) + 66px);
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: calc(100vw - 32px);
+  padding: 0.6em 1.1em;
+  border-radius: 999px;
+  background: rgba(30, 18, 20, 0.6);
+  color: var(--cream);
+  font-size: 0.85rem;
+  text-align: center;
+  opacity: 0;
+  transition: opacity 0.6s ease;
+}
+
+.hud-hint.show {
+  opacity: 1;
+}
+
+/* While a photo is open full-screen, hide the game overlay. */
+.viewing .hud,
+.viewing .placard {
+  opacity: 0 !important;
+  transition: opacity 0.2s;
+}
+
+/* ── Joystick ─────────────────────────────────────────────────── */
+.joystick {
+  position: fixed;
+  z-index: 11;
+  left: calc(var(--safe-left) + 96px);
+  top: calc(100% - var(--safe-bottom) - 104px);
+  width: 124px;
+  height: 124px;
+  margin: -62px 0 0 -62px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.55);
+  background: rgba(255, 255, 255, 0.14);
+  pointer-events: none; /* touches go to the canvas; this is only the picture */
+  opacity: 0.6;
+  transition: opacity 0.2s ease;
+}
+
+.joystick.active {
+  opacity: 1;
+}
+
+.joystick-knob {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 54px;
+  height: 54px;
+  margin: -27px 0 0 -27px;
+  border-radius: 50%;
+  background: rgba(255, 248, 241, 0.92);
+  box-shadow: 0 4px 14px rgba(40, 20, 20, 0.3);
+}
+
+/* ── Caption card near a photo ────────────────────────────────── */
+.placard {
+  position: fixed;
+  z-index: 12;
+  left: 50%;
+  bottom: calc(var(--safe-bottom) + 22px);
+  width: min(92vw, 430px);
+  display: flex;
+  flex-direction: column;
+  gap: 0.2em;
+  padding: 1em 1.4em 0.9em;
+  border: 1px solid rgba(217, 179, 108, 0.45);
+  border-radius: 18px;
+  background: var(--glass);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 12px 40px rgba(40, 20, 20, 0.22);
+  text-align: center;
+  opacity: 0;
+  transform: translate(-50%, 14px);
+  transition: opacity 0.35s ease, transform 0.35s ease;
+  pointer-events: none;
+}
+
+.placard.show {
+  opacity: 1;
+  transform: translate(-50%, 0);
+  pointer-events: auto;
+}
+
+.placard-date {
+  font-size: 0.72rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.placard-title {
+  font-family: var(--serif);
+  font-size: 1.45rem;
+  line-height: 1.15;
+  color: var(--wine);
+}
+
+.placard-caption {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 1.05rem;
+  line-height: 1.35;
+  color: var(--ink);
+}
+
+.placard-cta {
+  margin-top: 0.35em;
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  color: var(--rose);
+}
+
+/* On touch screens keep the left side free for the joystick thumb. */
+@media (pointer: coarse) {
+  .placard {
+    left: auto;
+    right: calc(var(--safe-right) + 12px);
+    bottom: calc(var(--safe-bottom) + 14px);
+    width: min(58vw, 340px);
+    padding: 0.8em 1em 0.75em;
+    transform: translateY(14px);
+  }
+
+  .placard.show {
+    transform: translateY(0);
+  }
+
+  .placard-title {
+    font-size: 1.2rem;
+  }
+
+  .placard-caption {
+    font-size: 0.95rem;
+  }
+}
+
+/* ── Full-screen photo viewer ─────────────────────────────────── */
+.lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  padding: calc(var(--safe-top) + 56px) calc(var(--safe-right) + 16px) calc(var(--safe-bottom) + 16px) calc(var(--safe-left) + 16px);
+  background: rgba(22, 13, 15, 0.95);
+  color: var(--cream);
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+
+.lightbox.show {
+  opacity: 1;
+}
+
+.lightbox-stage {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.lightbox-img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  border-radius: 4px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  -webkit-user-drag: none;
+}
+
+.lightbox-info {
+  flex: none;
+  padding: 1em 0.5em 0.25em;
+  text-align: center;
+}
+
+.lightbox-info p,
+.lightbox-info h2 {
+  margin: 0;
+}
+
+.lightbox-date {
+  font-size: 0.72rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  opacity: 0.7;
+}
+
+.lightbox-title {
+  font-family: var(--serif);
+  font-weight: 500;
+  font-size: 1.6rem;
+}
+
+.lightbox-caption {
+  max-width: 40rem;
+  margin: 0.2em auto 0 !important;
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 1.1rem;
+  opacity: 0.9;
+}
+
+.lightbox-counter {
+  margin-top: 0.4em !important;
+  font-size: 0.75rem;
+  opacity: 0.5;
+}
+
+.lightbox button {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(255, 248, 241, 0.12);
+  color: var(--cream);
+  font-size: 2rem;
+  line-height: 1;
+}
+
+.lightbox button:hover {
+  background: rgba(255, 248, 241, 0.22);
+}
+
+.lightbox-close {
+  top: calc(var(--safe-top) + 8px);
+  right: calc(var(--safe-right) + 10px);
+}
+
+.lightbox-prev,
+.lightbox-next {
+  top: 45%;
+}
+
+.lightbox-prev {
+  left: calc(var(--safe-left) + 10px);
+}
+
+.lightbox-next {
+  right: calc(var(--safe-right) + 10px);
+}
+
+/* ── The letter ───────────────────────────────────────────────── */
+.letter {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: grid;
+  place-items: center;
+  padding: calc(var(--safe-top) + 64px) 16px calc(var(--safe-bottom) + 24px);
+  background: radial-gradient(ellipse at center, rgba(70, 10, 30, 0.15), rgba(30, 5, 15, 0.55));
+  opacity: 0;
+  transition: opacity 0.9s ease;
+  pointer-events: none; /* you can keep walking while it's open */
+}
+
+.letter.show {
+  opacity: 1;
+}
+
+.letter-card {
+  position: relative;
+  width: min(88vw, 520px);
+  max-height: 100%;
+  overflow: auto;
+  padding: 2.2rem 2rem 1.8rem;
+  border: 1px solid var(--gold);
+  border-radius: 6px;
+  background: linear-gradient(160deg, #fffaf2, #f6e9d8);
+  box-shadow: 0 24px 70px rgba(30, 5, 15, 0.45);
+  text-align: center;
+  transform: translateY(14px) scale(0.98);
+  transition: transform 0.9s ease;
+  -webkit-user-select: text;
+  user-select: text;
+  touch-action: pan-y;
+}
+
+.letter.show .letter-card {
+  transform: none;
+  pointer-events: auto;
+}
+
+.letter-title {
+  margin: 0;
+  font-family: var(--serif);
+  font-weight: 500;
+  font-size: 2.2rem;
+  color: var(--wine);
+}
+
+.letter-heart {
+  margin: 0.1em 0 0.8em;
+  color: var(--rose);
+  font-size: 1.3rem;
+  animation: beat 1.6s ease-in-out infinite;
+}
+
+@keyframes beat {
+  0%, 100% { transform: scale(1); }
+  15% { transform: scale(1.25); }
+  30% { transform: scale(1); }
+  45% { transform: scale(1.15); }
+}
+
+.letter-message {
+  margin: 0;
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 1.25rem;
+  line-height: 1.55;
+  white-space: pre-line;
+  color: var(--ink);
+}
+
+.letter-signature {
+  margin: 1.2em 0 0;
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 1.3rem;
+  color: var(--wine);
+}
+
+.letter-close {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  width: 40px;
+  height: 40px;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font-size: 1.6rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .start-hearts,
+  .letter-heart {
+    display: none;
+  }
+}

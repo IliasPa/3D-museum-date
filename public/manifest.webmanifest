@@ -1,0 +1,13 @@
+{
+  "name": "Our Museum",
+  "short_name": "Our Museum",
+  "start_url": "./",
+  "display": "fullscreen",
+  "orientation": "any",
+  "background_color": "#1a1214",
+  "theme_color": "#2b1a1e",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml" },
+    { "src": "apple-touch-icon.png", "sizes": "180x180", "type": "image/png" }
+  ]
+}
