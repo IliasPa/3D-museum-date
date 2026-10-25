@@ -25,7 +25,9 @@ export const DOOR_WIDTH = 2.4;
 export const DOOR_HEIGHT = 3.0;
 export const FINALE_DOOR_WIDTH = 1.8;
 
-const ROOM_SIZE = 12; // starting width & depth of a room; grows if it needs more wall
+export const ROOM_SIZE = 12; // starting width & depth of a room; grows if it needs more wall
+export const MIN_ROOM = 8; // smallest / largest size the curator can pick for a room
+export const MAX_ROOM = 30;
 const MAX_ROOM_WIDTH = 18; // past this, rooms only get longer (a gallery hall)
 const FINALE_SIZE = 9;
 const CORNER_MARGIN = 1.0; // keep frames this far from corners…
@@ -55,8 +57,10 @@ export function planMuseum(config, photos, videos = []) {
 
   defs.forEach((def, index) => {
     const isFirst = index === 0;
-    let width = ROOM_SIZE;
-    let depth = ROOM_SIZE;
+    // The curator can choose a size (layout editor); rooms still grow if their photos need more wall.
+    const fit = (v) => Math.min(MAX_ROOM, Math.max(MIN_ROOM, v));
+    let width = fit(def.width ?? ROOM_SIZE);
+    let depth = fit(def.depth ?? ROOM_SIZE);
     let placed = null;
     let roomBenches;
     // Grow the room until all of its photos fit on the walls and every video has a bench.
@@ -75,7 +79,7 @@ export function planMuseum(config, photos, videos = []) {
         });
       }
       if (!placed) {
-        if (attempt % 2 === 0 || width + settings.spacing > MAX_ROOM_WIDTH) depth += settings.spacing;
+        if (attempt % 2 === 0 || width + settings.spacing > Math.max(MAX_ROOM_WIDTH, def.width ?? 0)) depth += settings.spacing;
         else width += settings.spacing;
       }
     }

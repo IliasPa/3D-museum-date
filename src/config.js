@@ -37,10 +37,10 @@ export const CONFIG = {
     enabled: true,
     doorSign: 'One more thing…', // written above the curtain
     title: 'For you', // shown when you step inside
-    // Each museum's message is written in /admin → Texts & rooms.
+    // Each museum's message is written in /admin → Texts.
     message: `[Your message goes here.]
 
-Write something from the heart on the curator page → Texts & rooms.
+Write something from the heart on the curator page → Texts.
 Every line break you type shows up here, too.`,
     signature: '— Me',
   },

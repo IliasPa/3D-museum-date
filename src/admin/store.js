@@ -164,6 +164,25 @@ export async function updatePhoto(museumId, photoId, patch) {
   await fs.updateDoc(fs.doc(db, 'museums', museumId, 'photos', photoId), patch);
 }
 
+/** Many photos at once (the layout editor moves and renumbers them): [{ id, ...fields }]. */
+export async function updatePhotos(museumId, updates) {
+  await updateMany(museumId, 'photos', updates);
+}
+
+export async function updateVideos(museumId, updates) {
+  await updateMany(museumId, 'videos', updates);
+}
+
+async function updateMany(museumId, part, updates) {
+  if (!updates.length) return;
+  const { db, fs } = await fsdb();
+  for (let i = 0; i < updates.length; i += 400) {
+    const batch = fs.writeBatch(db);
+    for (const { id, ...fields } of updates.slice(i, i + 400)) batch.update(fs.doc(db, 'museums', museumId, part, id), fields);
+    await batch.commit();
+  }
+}
+
 export async function deletePhoto(museumId, photoId) {
   const { db, fs } = await fsdb();
   const batch = fs.writeBatch(db);

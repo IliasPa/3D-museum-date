@@ -491,7 +491,7 @@ textarea {
   word-break: break-all;
 }
 
-/* ── Texts & rooms ── */
+/* ── Texts ── */
 .texts-form fieldset {
   display: grid;
   gap: 0.7rem;
@@ -532,32 +532,6 @@ textarea {
   font-family: var(--serif);
   font-size: 1.1rem;
   font-style: italic;
-}
-
-.room-row {
-  display: grid;
-  grid-template-columns: 1.6rem minmax(0, 1fr) auto auto auto auto;
-  align-items: center;
-  gap: 0.4rem;
-}
-
-.room-number {
-  color: var(--muted);
-  font-weight: 600;
-  text-align: center;
-}
-
-.texts-form label.color {
-  display: flex;
-  align-items: center;
-  gap: 0.3rem;
-  font-size: 0.75rem;
-}
-
-.color input {
-  width: 34px;
-  height: 34px;
-  padding: 2px;
 }
 
 .form-actions {
@@ -657,6 +631,121 @@ textarea {
   text-anchor: middle;
 }
 
+/* ── Layout editor ── */
+.plan-tools {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 0.6rem;
+}
+
+.layout-status {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.plan-room-floor.editable {
+  cursor: pointer;
+}
+
+.plan-room-floor.editable:hover {
+  filter: brightness(1.04);
+}
+
+.plan-room-floor.selected {
+  stroke: var(--rose);
+}
+
+.plan-room-floor.drop-target {
+  filter: brightness(1.1) saturate(1.3);
+  stroke: var(--rose);
+}
+
+.plan-photo {
+  cursor: grab;
+  touch-action: none;
+}
+
+.plan-photo.dragging {
+  opacity: 0.35;
+}
+
+.plan-photo.drop-onto .plan-badge {
+  fill: var(--rose);
+  stroke: #fff;
+  stroke-width: 0.12;
+}
+
+.plan-ghost circle {
+  fill: var(--rose);
+  stroke: #fff;
+  stroke-width: 0.1;
+}
+
+.plan-ghost text {
+  text-anchor: middle;
+}
+
+.room-panel {
+  display: grid;
+  gap: 0.8rem;
+  margin-top: 0.8rem;
+  padding: 1rem 1.2rem;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--paper);
+}
+
+.room-panel-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem 1.2rem;
+}
+
+.rp-field {
+  display: grid;
+  gap: 0.2rem;
+  flex: 1 1 14rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.rp-colour {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.85rem;
+}
+
+.rp-colour input {
+  width: 38px;
+  height: 34px;
+  padding: 2px;
+}
+
+.rp-size {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.rp-size strong {
+  min-width: 3.2em;
+  text-align: center;
+}
+
+.rp-note {
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-style: italic;
+}
+
+.room-panel button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
 /* ── Toast ── */
 .toast {
   position: fixed;
@@ -700,14 +789,5 @@ textarea {
   .photo-thumb img {
     width: 80px;
     height: 80px;
-  }
-
-  .room-row {
-    grid-template-columns: 1.4rem minmax(0, 1fr) auto auto;
-  }
-
-  .room-row .color {
-    grid-row: 2;
-    grid-column: 2 / span 1;
   }
 }

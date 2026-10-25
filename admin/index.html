@@ -51,7 +51,7 @@
           <button type="button" role="tab" data-tab="photos" aria-selected="true">Photos</button>
           <button type="button" role="tab" data-tab="videos">Videos</button>
           <button type="button" role="tab" data-tab="guests">Guests</button>
-          <button type="button" role="tab" data-tab="texts">Texts & rooms</button>
+          <button type="button" role="tab" data-tab="texts">Texts</button>
           <button type="button" role="tab" data-tab="music">Music</button>
           <button type="button" role="tab" data-tab="preview">Preview</button>
         </nav>
@@ -93,7 +93,7 @@
           </div>
         </div>
 
-        <!-- Texts & rooms -->
+        <!-- Texts -->
         <form class="tab texts-form" data-panel="texts" hidden>
           <fieldset>
             <legend>Start screen</legend>
@@ -108,8 +108,7 @@
           </fieldset>
           <fieldset>
             <legend>Rooms</legend>
-            <div class="rooms-editor"></div>
-            <button class="btn btn-ghost add-room" type="button">+ Add room</button>
+            <p class="help">Rename, recolour, resize, reorder, add and remove rooms in the <button class="link go-layout" type="button">Preview</button> tab.</p>
           </fieldset>
           <fieldset>
             <legend>The hidden last room</legend>
@@ -163,10 +162,40 @@
           <p class="upload-status music-status" aria-live="polite"></p>
         </div>
 
-        <!-- Preview -->
+        <!-- Preview & layout -->
         <div class="tab" data-panel="preview" hidden>
-          <p class="help">Seen from above: visitors start on the left and walk to the right. Numbers follow the walking order — click one to edit that photo.</p>
+          <p class="help">Seen from above: visitors start on the left and walk to the right.
+            <strong>Click a room</strong> to rename, recolour, resize or move it.
+            <strong>Drag a number</strong> onto another room to move that photo there — or onto another photo to take its place.
+            Click a number to edit that photo. Everything saves by itself.</p>
+          <div class="plan-tools">
+            <button class="btn btn-ghost add-room" type="button">+ Add room</button>
+            <span class="layout-status" aria-live="polite"></span>
+          </div>
           <div class="plan-wrap"></div>
+          <div class="room-panel" hidden>
+            <div class="room-panel-row">
+              <label class="rp-field">Room name <input class="rp-name" maxlength="40" /></label>
+              <label class="rp-colour" title="Wall colour"><input type="color" class="rp-wall" /> Walls</label>
+              <label class="rp-colour" title="Colour of the room's sign"><input type="color" class="rp-trim" /> Sign</label>
+            </div>
+            <div class="room-panel-row">
+              <span class="rp-size">Width
+                <button class="icon" type="button" data-size="width" data-step="-2" aria-label="Narrower">−</button>
+                <strong class="rp-width"></strong>
+                <button class="icon" type="button" data-size="width" data-step="2" aria-label="Wider">+</button></span>
+              <span class="rp-size">Length
+                <button class="icon" type="button" data-size="depth" data-step="-2" aria-label="Shorter">−</button>
+                <strong class="rp-depth"></strong>
+                <button class="icon" type="button" data-size="depth" data-step="2" aria-label="Longer">+</button></span>
+              <span class="rp-note"></span>
+            </div>
+            <div class="room-panel-row">
+              <button class="btn btn-ghost" type="button" data-room-move="-1">◀ Earlier</button>
+              <button class="btn btn-ghost" type="button" data-room-move="1">Later ▶</button>
+              <button class="btn btn-danger" type="button" data-room-remove>Remove room</button>
+            </div>
+          </div>
         </div>
       </section>
     </main>

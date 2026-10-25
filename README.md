@@ -23,20 +23,23 @@ If you ever move the site to another address (e.g. Netlify or your own domain), 
 ## 2. Make a museum for a couple (`/admin`)
 
 1. Go to **https://iliaspa.github.io/3D-museum-date/admin/** and sign in with `iliasparaskevas3@gmail.com`.
-2. Under **Museums**, type a name (e.g. "Maria & Nikos") and click **+ New museum**. It gets its own link, e.g. `…/3D-museum-date/?m=maria-nikos`. Greek names work too ("Μαρία & Νίκος" becomes `maria-nikos`). You can change the link name under *Texts & rooms*.
+2. Under **Museums**, type a name (e.g. "Maria & Nikos") and click **+ New museum**. It gets its own link, e.g. `…/3D-museum-date/?m=maria-nikos`. Greek names work too ("Μαρία & Νίκος" becomes `maria-nikos`). You can change the link name under *Texts*.
 3. **Photos:** drag photos in, or click to choose them. JPG, PNG and iPhone HEIC all work, at any size. They're resized, compressed and stripped of location data in your browser before uploading. Choose the room first with "New photos go to…". Then give each photo a title, a date (any text, like "Summer 2021") and a caption; changes save by themselves. Use ← → to change the walking order. "Add 10 sample photos" fills a museum with placeholders, if you want to try things out.
 4. **Videos:** choose a video (any phone video, including iPhone HEVC). Your browser converts it to a small MP4 that plays everywhere (up to 2 minutes, about 12 MB a minute). It hangs on the wall **in front of a bench** in the room you chose, and plays, with sound, when someone sits on that bench. Each room has benches for two videos; rooms grow longer if you add more.
 5. **Guests:** add the couple's Google (Gmail) addresses. Use exactly the address they sign in with. Then send them **this museum's link** (shown there, with a Copy button). If you add an email that's already on the list, or that's already invited to another museum, you get a short notice.
-6. **Texts & rooms:** the link name, the title on the start screen, room names and colours (add or remove rooms), and **the personal message** in the hidden last room. Click **Save**.
+6. **Texts:** the link name, the title on the start screen and **the personal message** in the hidden last room. Click **Save**.
 7. **Music:** upload their song (MP3, up to 8 MB). Without one, a gentle music-box tune plays.
-8. **Preview:** a light floor plan showing where every photo, bench and video screen is (click a number to edit that item). **Walk through ↗** opens the real 3D museum. As the curator you can visit any museum, and you stay invisible to the couple unless you add your own email as a guest.
+8. **Preview (and layout):** a floor plan, seen from above, built with the same code as the 3D museum, so it shows exactly where every photo, bench and video screen will be. Everything you change here saves by itself:
+   - **Click a room** to rename it, change its wall and sign colours, make it wider or longer (8–30 m; a room still grows if its photos need more wall), move it earlier or later in the walk, or remove it. Its photos and videos move with it; a removed room's photos go to the room next to it. **+ Add room** adds one at the end.
+   - **Drag a number** onto another room to move that photo there, or onto another photo to take its place. Drag a **▶** to move a video. Click a number to edit that photo.
+   - **Walk through ↗** opens the real 3D museum. As the curator you can visit any museum, and you stay invisible to the couple unless you add your own email as a guest.
 
 You can make as many museums as you like, one per couple, each with its own link, photos, videos, texts, song and guests. Nobody can enter a museum they're not invited to: the database refuses it, even if someone has the link. If an email is invited to several museums, that person picks one of *their* museums after signing in.
 
 ## 3. Playing together
 
 - Both people open their museum's link on their phones or computers and sign in with Google.
-- Before entering, each dresses up their avatar:
+- Before entering, each dresses up their avatar (a little character with bendable arms and legs, hands with fingers and a face that shows feelings):
   - **Body:** guy or girl, skin tone, eye colour.
   - **Hair:** 10 styles (incl. bald) in 11 colours, plus freckles, stubble, moustache or beard.
   - **Outfit:** sweater, T-shirt, hoodie or dress; trousers, shorts or skirt; shoe colour.

@@ -16,6 +16,7 @@ import * as store from './store.js';
 import { processImage, isHeic, titleFromFileName } from './imageTools.js';
 import { processVideo, MAX_SECONDS } from './videoTools.js';
 import { renderFloorPlan } from './floorPlan.js';
+import { ROOM_SIZE, MIN_ROOM, MAX_ROOM } from '../world/layout.js';
 
 const $ = (selector, root = document) => root.querySelector(selector);
 const MAX_SONG_BYTES = 8 * 1024 * 1024;
@@ -105,6 +106,7 @@ $('.new-museum').addEventListener('submit', async (e) => {
 
 async function selectMuseum(id) {
   state.current = state.museums.find((m) => m.id === id);
+  selectedRoom = -1;
   for (const b of $('.museum-list').querySelectorAll('button')) b.setAttribute('aria-current', String(b.dataset.id === id));
   $('.editor').hidden = false;
   $('.editor-title').textContent = state.current.name || state.current.title;
@@ -356,9 +358,8 @@ $('.copy-link').addEventListener('click', async () => {
   }
 });
 
-// ── Texts & rooms ─────────────────────────────────────────────────────
+// ── Texts ─────────────────────────────────────────────────────────────
 const textsForm = $('.texts-form');
-let draftRooms = [];
 
 function renderTexts() {
   const c = museumConfig(state.current);
@@ -373,50 +374,12 @@ function renderTexts() {
   f.finaleTitle.value = c.finale.title;
   f.message.value = c.finale.message;
   f.signature.value = c.finale.signature;
-  draftRooms = c.rooms.map((r) => ({ ...r }));
-  renderRooms();
   $('.save-state').textContent = '';
 }
 
-function renderRooms() {
-  const wrap = $('.rooms-editor');
-  wrap.replaceChildren(...draftRooms.map((room, i) => {
-    const row = document.createElement('div');
-    row.className = 'room-row';
-    row.innerHTML = `
-      <span class="room-number">${i + 1}</span>
-      <input class="room-title" aria-label="Room ${i + 1} name" maxlength="40" />
-      <label class="color" title="Wall colour"><input type="color" class="room-wall" /> walls</label>
-      <label class="color" title="Text colour"><input type="color" class="room-trim" /> text</label>
-      <button type="button" class="icon" data-up aria-label="Move up">↑</button>
-      <button type="button" class="icon danger" data-remove aria-label="Remove room">×</button>`;
-    const title = $('.room-title', row);
-    title.value = room.title;
-    title.addEventListener('input', () => (room.title = title.value));
-    $('.room-wall', row).value = room.wall;
-    $('.room-wall', row).addEventListener('input', (e) => (room.wall = e.target.value));
-    $('.room-trim', row).value = room.trim;
-    $('.room-trim', row).addEventListener('input', (e) => (room.trim = e.target.value));
-    $('[data-up]', row).addEventListener('click', () => {
-      if (i === 0) return;
-      [draftRooms[i - 1], draftRooms[i]] = [draftRooms[i], draftRooms[i - 1]];
-      renderRooms();
-      dirty();
-    });
-    $('[data-remove]', row).addEventListener('click', () => {
-      if (draftRooms.length === 1) return toast('A museum needs at least one room.');
-      draftRooms.splice(i, 1);
-      renderRooms();
-      dirty();
-    });
-    return row;
-  }));
-}
-
-$('.add-room').addEventListener('click', () => {
-  draftRooms.push({ title: `Room ${draftRooms.length + 1}`, wall: '#ece3d6', trim: '#6b4a35' });
-  renderRooms();
-  dirty();
+$('.go-layout').addEventListener('click', () => {
+  state.tab = 'preview';
+  renderTab();
 });
 
 function dirty() {
@@ -436,7 +399,6 @@ textsForm.addEventListener('submit', async (e) => {
     title: f.title.value.trim(),
     subtitle: f.subtitle.value.trim(),
     language: f.language.value,
-    rooms: draftRooms.map((r) => ({ title: r.title.trim() || 'Room', wall: r.wall, trim: r.trim })),
     finale: {
       enabled: f.finaleEnabled.checked,
       doorSign: f.doorSign.value.trim(),
@@ -587,17 +549,195 @@ $('.remove-music').addEventListener('click', async () => {
   renderMusic();
 });
 
-// ── Preview (floor plan) ──────────────────────────────────────────────
+// ── Preview & layout editor ───────────────────────────────────────────
+let selectedRoom = -1;
+
+/** The museum's rooms (a copy, ready to edit). */
+function rooms() {
+  return museumConfig(state.current).rooms.map((r) => ({ ...r }));
+}
+
 function renderPreview() {
-  const svg = renderFloorPlan(museumConfig(state.current), state.photos, state.videos, (item) => {
-    state.tab = state.videos.includes(item) ? 'videos' : 'photos';
-    renderTab();
-    const card = document.querySelector(`.photo-card[data-id="${item.id}"]`);
-    card?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    card?.classList.add('flash');
-    setTimeout(() => card?.classList.remove('flash'), 1600);
+  const { svg, plan } = renderFloorPlan(museumConfig(state.current), state.photos, state.videos, {
+    selectedRoom,
+    onRoomClick: (i) => {
+      selectedRoom = selectedRoom === i ? -1 : i;
+      renderPreview();
+    },
+    onItemClick: (item) => {
+      state.tab = state.videos.includes(item) ? 'videos' : 'photos';
+      renderTab();
+      const card = document.querySelector(`.photo-card[data-id="${item.id}"]`);
+      card?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      card?.classList.add('flash');
+      setTimeout(() => card?.classList.remove('flash'), 1600);
+    },
+    onDrop: (item, roomIndex, onto) => (state.videos.includes(item) ? moveVideo(item, roomIndex) : movePhoto(item, roomIndex, onto)),
   });
   $('.plan-wrap').replaceChildren(svg);
+  renderRoomPanel(plan);
+}
+
+/** The panel under the plan for the selected room. */
+function renderRoomPanel(plan) {
+  const panel = $('.room-panel');
+  const list = rooms();
+  const room = list[selectedRoom];
+  panel.hidden = !room;
+  if (!room) return;
+  const actual = plan.rooms[selectedRoom];
+  // Leave a field alone while it's being edited (it saves itself as you type).
+  for (const [sel, value] of [['.rp-name', room.title], ['.rp-wall', room.wall], ['.rp-trim', room.trim]]) {
+    if (document.activeElement !== $(sel) || panel.dataset.room !== String(selectedRoom)) $(sel).value = value;
+  }
+  panel.dataset.room = selectedRoom;
+  $('.rp-width').textContent = `${Math.round(actual.width)} m`;
+  $('.rp-depth').textContent = `${Math.round(actual.depth)} m`;
+  const grown = actual.width > (room.width ?? ROOM_SIZE) + 0.1 || actual.depth > (room.depth ?? ROOM_SIZE) + 0.1;
+  $('.rp-note').textContent = grown ? 'grown to fit its photos' : '';
+  panel.querySelector('[data-room-move="-1"]').disabled = selectedRoom === 0;
+  panel.querySelector('[data-room-move="1"]').disabled = selectedRoom === list.length - 1;
+  panel.querySelector('[data-room-remove]').disabled = list.length === 1;
+}
+
+/**
+ * Change the rooms list (and, if rooms moved, the photos/videos that live in
+ * them). The page updates at once, so quick clicks build on each other; the
+ * database follows.
+ */
+let savesInFlight = 0;
+async function saveLayout(nextRooms, renumber = null) {
+  const museumId = state.current.id;
+  state.current.rooms = nextRooms;
+  let photoUpdates = [];
+  let videoUpdates = [];
+  if (renumber) {
+    // renumber(oldRoomNumber) → new room number, for every photo and video.
+    videoUpdates = state.videos.filter((v) => renumber(v.room) !== v.room).map((v) => ({ id: v.id, room: renumber(v.room) }));
+    for (const v of state.videos) v.room = renumber(v.room);
+    // Photos keep their order within a room, but are numbered in walking order again.
+    const before = new Map(state.photos.map((p) => [p, { room: p.room, order: p.order }]));
+    for (const p of state.photos) p.room = renumber(p.room);
+    state.photos.sort((a, b) => a.room - b.room || (a.order ?? 0) - (b.order ?? 0));
+    state.photos.forEach((p, i) => (p.order = i + 1));
+    photoUpdates = state.photos
+      .filter((p) => p.room !== before.get(p).room || p.order !== before.get(p).order)
+      .map((p) => ({ id: p.id, room: p.room, order: p.order }));
+  }
+  renderStats();
+  renderPreview();
+  const status = $('.layout-status');
+  status.textContent = 'Saving…';
+  savesInFlight++;
+  try {
+    await Promise.all([store.updatePhotos(museumId, photoUpdates), store.updateVideos(museumId, videoUpdates)]);
+    await store.saveMuseum(museumId, { rooms: nextRooms });
+    if (--savesInFlight === 0) status.textContent = 'Saved ✓';
+  } catch (err) {
+    savesInFlight--;
+    console.error(err);
+    status.textContent = 'Couldn’t save — try again.';
+  }
+}
+
+// Name and colours: shown at once, saved a moment after typing stops.
+let roomTimer;
+for (const [sel, field] of [['.rp-name', 'title'], ['.rp-wall', 'wall'], ['.rp-trim', 'trim']]) {
+  $(sel).addEventListener('input', (e) => {
+    const next = rooms();
+    if (!next[selectedRoom]) return;
+    next[selectedRoom][field] = field === 'title' ? e.target.value.trim() || `Room ${selectedRoom + 1}` : e.target.value;
+    const museum = state.current;
+    museum.rooms = next;
+    renderPreview();
+    clearTimeout(roomTimer);
+    roomTimer = setTimeout(() => (museum === state.current ? saveLayout(rooms()) : store.saveMuseum(museum.id, { rooms: museum.rooms })), 500);
+  });
+}
+
+$('.room-panel').addEventListener('click', (e) => {
+  const b = e.target.closest('button');
+  if (!b || selectedRoom < 0) return;
+  const next = rooms();
+  const n = next.length;
+  if (b.dataset.size) {
+    const key = b.dataset.size;
+    const current = next[selectedRoom][key] ?? ROOM_SIZE;
+    next[selectedRoom][key] = Math.min(MAX_ROOM, Math.max(MIN_ROOM, current + Number(b.dataset.step)));
+    saveLayout(next);
+  } else if (b.dataset.roomMove) {
+    const i = selectedRoom;
+    const j = i + Number(b.dataset.roomMove);
+    if (j < 0 || j >= n) return;
+    [next[i], next[j]] = [next[j], next[i]];
+    selectedRoom = j;
+    // Photos follow their room: numbers i+1 and j+1 swap.
+    saveLayout(next, (r) => (r === i + 1 ? j + 1 : r === j + 1 ? i + 1 : r));
+  } else if (b.hasAttribute('data-room-remove')) {
+    const i = selectedRoom;
+    const count = [...state.photos, ...state.videos].filter((it) => it.room === i + 1).length;
+    const neighbour = next[i === 0 ? 1 : i - 1]; // its photos move to the previous room (or the next one)
+    if (count && !confirm(`Remove “${next[i].title}”? Its ${count} photo(s)/video(s) move to “${neighbour.title}”.`)) return;
+    next.splice(i, 1);
+    selectedRoom = -1;
+    // Rooms after it move one place earlier; its own items join the neighbour.
+    saveLayout(next, (r) => (r === i + 1 ? (i === 0 ? 1 : i) : r > i + 1 ? r - 1 : r));
+  }
+});
+
+$('.add-room').addEventListener('click', () => {
+  const next = rooms();
+  next.push({ title: `Room ${next.length + 1}`, wall: '#ece3d6', trim: '#6b4a35' });
+  selectedRoom = next.length - 1;
+  saveLayout(next);
+});
+
+/** Drag & drop: put a photo in another room, or in another photo's place. */
+async function movePhoto(photo, roomIndex, onto) {
+  if (!onto && photo.room === roomIndex + 1) return; // dropped back into its own room
+  const list = [...state.photos];
+  list.splice(list.indexOf(photo), 1);
+  photo.room = onto ? onto.room : roomIndex + 1;
+  let at;
+  if (onto) {
+    // Take its place: moving later in the walk lands just after it, moving earlier just before.
+    const movingLater = state.photos.indexOf(onto) > state.photos.indexOf(photo);
+    at = list.indexOf(onto) + (movingLater ? 1 : 0);
+  } else {
+    const last = list.map((p) => p.room).lastIndexOf(photo.room);
+    at = last >= 0 ? last + 1 : list.findIndex((p) => p.room > photo.room);
+    if (at < 0) at = list.length;
+  }
+  list.splice(at, 0, photo);
+  const updates = [];
+  list.forEach((p, i) => {
+    if (p.order !== i + 1 || p === photo) updates.push({ id: p.id, order: i + 1, room: p.room });
+    p.order = i + 1;
+  });
+  state.photos = list;
+  $('.layout-status').textContent = 'Saving…';
+  renderPreview();
+  try {
+    await store.updatePhotos(state.current.id, updates);
+    $('.layout-status').textContent = 'Saved ✓';
+  } catch (err) {
+    console.error(err);
+    $('.layout-status').textContent = 'Couldn’t save — try again.';
+  }
+}
+
+async function moveVideo(video, roomIndex) {
+  if (video.room === roomIndex + 1) return;
+  video.room = roomIndex + 1;
+  $('.layout-status').textContent = 'Saving…';
+  renderPreview();
+  try {
+    await store.updateVideo(state.current.id, video.id, { room: video.room });
+    $('.layout-status').textContent = 'Saved ✓';
+  } catch (err) {
+    console.error(err);
+    $('.layout-status').textContent = 'Couldn’t save — try again.';
+  }
 }
 
 // ── Little helpers ────────────────────────────────────────────────────
