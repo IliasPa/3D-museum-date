@@ -12,15 +12,13 @@ Built with [three.js](https://threejs.org), [Vite](https://vite.dev) and [Fireba
 
 ---
 
-## 1. One-time Firebase setup
+## 1. Firebase setup (done)
 
-The Firebase project **`our-museum-iliaspa`** already exists: its databases are in Belgium, its security rules are deployed, and its settings are in `src/firebase-config.js`. Only Google sign-in has to be switched on by hand (Google requires the console for this):
+The Firebase project **`our-museum-iliaspa`** is ready: its databases are in Belgium, its security rules are deployed, Google sign-in is on, and `iliaspa.github.io` and `localhost` may sign in. Its settings are in `src/firebase-config.js`.
 
-1. Open https://console.firebase.google.com/project/our-museum-iliaspa/authentication and click **Get started**.
-2. Under **Sign-in method**, choose **Google**, switch it **on**, pick your email as the support email, then click **Save**.
-3. Open **Settings → Authorized domains → Add domain**, enter `iliaspa.github.io`, then click **Add**. (`localhost` is already there, for testing on your Mac.)
-
-That's it. Open the curator page and sign in.
+If you ever move the site to another address (e.g. Netlify or your own domain), add that address in two places:
+1. Firebase console → Authentication → **Settings → Authorized domains**.
+2. Google Cloud console → APIs & Services → **Credentials → Browser key (auto created by Firebase) → Website restrictions** (see "The GitHub secret alert" below).
 
 ## 2. Make a museum for a couple (`/admin`)
 
@@ -54,6 +52,7 @@ You can make as many museums as you like, one per couple, each with its own phot
 
 - Photos, texts and guest lists live in Firebase (Firestore), protected by the rules in `firestore.rules`. Only the curator and that museum's guests can read a museum, and only the curator can change anything. Live positions (Realtime Database, `database.rules.json`) are readable only by that museum's guests. Even though the website is public, the photos are not.
 - The settings in `src/firebase-config.js` are public by design. Every Firebase website ships them, and the rules do the protecting.
+- **The GitHub secret alert:** GitHub flags the `apiKey` in `src/firebase-config.js` as a "Google API Key". That's expected. A Firebase web key identifies the project and has to be sent to every visitor's browser, so it can't be hidden, and on its own it can't read anything. It is also restricted: it only works from `iliaspa.github.io`, the Google sign-in pop-up and `localhost:5173`/`4173`, and only for sign-in and the databases. The alert was closed as "won't fix" with this explanation.
 - On the free Spark plan this comfortably covers many couples. The limits are 1 GB of stored data (about 1,500 photos), 10 GB of downloads a month (about 1,500 museum visits; photos are cached on the device after the first visit) and 100 people online at once. No credit card is needed. If you ever hit a limit, the museum just pauses until the next day or month. It never charges you.
 - Photos are stored inside the database rather than as files, so each is capped at 1600 px for full screen. That's sharp on phones and laptops.
 
@@ -68,7 +67,7 @@ npm run dev      # http://localhost:5173 — uses the real Firebase project
 
 Shared settings for all museums (avatar colours, walking speed, camera, frame style, graphics) are in `src/config.js`. Everything per couple is in `/admin`.
 
-**Test on your iPhone over Wi-Fi:** with `npm run dev` running, open the **Network** address it prints (e.g. `http://192.168.1.217:5173/`) in Safari on the same Wi-Fi network. To sign in from that address, add your Mac's IP (e.g. `192.168.1.217`) to Firebase → Authentication → Settings → Authorized domains. Or simply test on the live site.
+**Test on your iPhone:** easiest is the live site: push your change and open it on the phone. To test the local version over Wi-Fi instead, open the **Network** address `npm run dev` prints (e.g. `http://192.168.1.217:5173/`). To sign in from that address, add it in the two places listed in section 1: `192.168.1.217` under Authorized domains, and `http://192.168.1.217:5173/*` under the key's website restrictions.
 
 **Offline testing with fake accounts:** `npm run emulators` (needs Java 21) plus, in a second terminal, `npm run dev:emulator`. This runs a local copy of Firebase with throw-away data. In the browser console, `__testSignIn('anyone@example.com')` signs you in as anyone.
 
@@ -88,7 +87,7 @@ git push
 
 Wait about a minute (watch the repository's **Actions** tab). Photos, texts, guests and music don't need a deploy: they're edited live in `/admin`.
 
-Netlify also works (`netlify.toml` is included): run `npm run build`, drag `dist/` onto https://app.netlify.com/drop, then add the Netlify address to Firebase → Authentication → Settings → Authorized domains.
+Netlify also works (`netlify.toml` is included): run `npm run build`, drag `dist/` onto https://app.netlify.com/drop, then add the Netlify address in the two places listed in section 1.
 
 ## 7. Use your own avatar (e.g. from Mixamo)
 
@@ -132,7 +131,7 @@ public/audio/song.mp3     the default song
 ## 9. Troubleshooting
 
 - **"…isn't on a guest list yet":** add that exact email in /admin → Guests (it's shown on screen).
-- **"Google sign-in isn't switched on yet":** do step 1 above.
-- **"This web address isn't allowed to sign in yet":** add the address under Authentication → Settings → Authorized domains.
+- **"Google sign-in isn't switched on yet":** Firebase console → Authentication → Sign-in method → Google → on.
+- **"This web address isn't allowed to sign in yet"** or **"…isn't allowed to use the museum's Firebase key":** add the address in the two places listed in section 1.
 - **A photo won't upload:** the status line names the file and the reason. Very unusual formats may need exporting as JPEG first.
 - **Slow on an older phone:** the game automatically lowers its resolution if it struggles. You can also lower `graphics.maxPixelRatio` to `1.5` in `src/config.js`.

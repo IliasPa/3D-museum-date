@@ -63,6 +63,10 @@ export function signInErrorMessage(err) {
     case 'auth/network-request-failed':
       return 'No connection — check your internet and try again.';
     default:
+      // The API key only works on the museum's own web addresses (see README → "The GitHub secret alert").
+      if (String(err?.code).startsWith('auth/requests-from-referer')) {
+        return 'This web address isn’t allowed to use the museum’s Firebase key (Google Cloud → Credentials → Browser key → Website restrictions).';
+      }
       return 'Sign-in didn’t work. Please try again.';
   }
 }
