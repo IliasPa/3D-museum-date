@@ -36,6 +36,10 @@
           <input name="name" type="text" placeholder="Couple, e.g. Anna & Nikos" required maxlength="60" />
           <button class="btn" type="submit">+ New museum</button>
         </form>
+        <div class="storage" title="Everything is stored in Firebase's free plan: 1 GB in total for all museums.">
+          <div class="storage-bar"><span></span></div>
+          <p class="storage-text"></p>
+        </div>
       </aside>
 
       <section class="editor" hidden>
@@ -51,7 +55,6 @@
           <button type="button" role="tab" data-tab="photos" aria-selected="true">Photos</button>
           <button type="button" role="tab" data-tab="videos">Videos</button>
           <button type="button" role="tab" data-tab="guests">Guests</button>
-          <button type="button" role="tab" data-tab="texts">Texts</button>
           <button type="button" role="tab" data-tab="music">Music</button>
           <button type="button" role="tab" data-tab="preview">Preview</button>
         </nav>
@@ -62,18 +65,19 @@
             <label class="dropzone">
               <input class="file-input" type="file" accept="image/*,.heic,.heif" multiple />
               <strong>Drop photos here</strong> or click to choose
-              <small>JPG, PNG or iPhone HEIC · any size · resized and cleaned automatically</small>
+              <small>JPG, PNG or iPhone HEIC · any size · resized and cleaned automatically · they fill the free spots, room by room</small>
             </label>
             <div class="upload-options">
-              <label>New photos go to
-                <select class="upload-room"></select>
-              </label>
               <button class="btn btn-ghost add-samples" type="button">Add 10 sample photos</button>
+              <div class="bin" title="Drag a photo here to delete it" aria-label="Drag a photo here to delete it">
+                <span class="bin-icon" aria-hidden="true">🗑</span>
+                <span class="bin-text">Drag a photo here to delete it</span>
+              </div>
             </div>
             <p class="upload-status" aria-live="polite"></p>
           </div>
-          <p class="empty photos-empty">No photos yet.</p>
-          <div class="photo-grid"></div>
+          <p class="help photos-help">Drag a photo by its picture to change the order or move it to another room. You can also drop new photos straight onto a room.</p>
+          <div class="photo-rooms"></div>
         </div>
 
         <!-- Guests -->
@@ -93,41 +97,6 @@
           </div>
         </div>
 
-        <!-- Texts -->
-        <form class="tab texts-form" data-panel="texts" hidden>
-          <fieldset>
-            <legend>Start screen</legend>
-            <label>Name in this list <input name="name" maxlength="60" /></label>
-            <label>Link name <span class="hint">— the museum's address ends with <code>?m=</code> and this</span>
-              <input name="slug" maxlength="40" pattern="[a-z0-9\-]+" title="Small letters, numbers and dashes" /></label>
-            <label>Title <input name="title" maxlength="60" /></label>
-            <label>Subtitle <input name="subtitle" maxlength="120" /></label>
-            <label>Language of the texts
-              <select name="language"><option value="en">English</option><option value="el">Ελληνικά (Greek)</option></select>
-            </label>
-          </fieldset>
-          <fieldset>
-            <legend>Rooms</legend>
-            <p class="help">Rename, recolour, resize, reorder, add and remove rooms in the <button class="link go-layout" type="button">Preview</button> tab.</p>
-          </fieldset>
-          <fieldset>
-            <legend>The hidden last room</legend>
-            <label class="check"><input type="checkbox" name="finaleEnabled" /> Show the last room behind the curtain</label>
-            <label>Sign above the curtain <input name="doorSign" maxlength="60" /></label>
-            <label>Room title <input name="finaleTitle" maxlength="60" /></label>
-            <label>Your message <textarea name="message" rows="8"></textarea></label>
-            <label>Signature <input name="signature" maxlength="60" /></label>
-          </fieldset>
-          <div class="form-actions">
-            <button class="btn" type="submit">Save</button>
-            <span class="save-state" aria-live="polite"></span>
-          </div>
-          <fieldset class="danger">
-            <legend>Danger zone</legend>
-            <button class="btn btn-danger delete-museum" type="button">Delete this museum</button>
-          </fieldset>
-        </form>
-
         <!-- Videos -->
         <div class="tab" data-panel="videos" hidden>
           <p class="help">A video hangs on the wall in front of a bench and plays — with sound — when someone sits on that bench
@@ -136,7 +105,7 @@
             <label class="dropzone video-drop">
               <input class="video-input" type="file" accept="video/*" />
               <strong>Choose a video</strong>
-              <small>Any phone video · converted in your browser to a small MP4 that plays everywhere · up to 2 minutes</small>
+              <small>Any phone video, any length · converted in your browser to a small MP4 that plays everywhere · up to 50 MB each (a long video gets a lower quality to fit)</small>
             </label>
             <div class="upload-options">
               <label>It goes to
@@ -164,16 +133,17 @@
 
         <!-- Preview & layout -->
         <div class="tab" data-panel="preview" hidden>
-          <p class="help">Seen from above: visitors start on the left and walk to the right.
-            <strong>Click a room</strong> to rename, recolour, resize or move it.
-            <strong>Drag a number</strong> onto another room to move that photo there — or onto another photo to take its place.
-            Click a number to edit that photo. Everything saves by itself.</p>
+          <p class="help">Seen from above: visitors start on the left and walk to the right. <strong>Click</strong> a room, a numbered spot,
+            the <strong>start</strong> dot or the last room to edit it below. <span class="key-filled">Green</span> spots have a photo,
+            <span class="key-empty">red</span> ones are free. <strong>Drag</strong> a green number onto another spot or room to move that photo.
+            Everything saves by itself.</p>
           <div class="plan-tools">
             <button class="btn btn-ghost add-room" type="button">+ Add room</button>
             <span class="layout-status" aria-live="polite"></span>
           </div>
           <div class="plan-wrap"></div>
-          <div class="room-panel" hidden>
+
+          <div class="panel room-panel" hidden>
             <div class="room-panel-row">
               <label class="rp-field">Room name <input class="rp-name" maxlength="40" /></label>
               <label class="rp-colour" title="Wall colour"><input type="color" class="rp-wall" /> Walls</label>
@@ -196,6 +166,51 @@
               <button class="btn btn-danger" type="button" data-room-remove>Remove room</button>
             </div>
           </div>
+
+          <div class="panel spot-panel" hidden>
+            <div class="spot-filled">
+              <img class="sp-photo" alt="" />
+              <div class="photo-fields">
+                <p class="sp-where"></p>
+                <input name="title" placeholder="Title" maxlength="80" />
+                <input name="date" placeholder="Date — any text, e.g. Summer 2021" maxlength="60" />
+                <textarea name="caption" rows="3" placeholder="Caption" maxlength="400"></textarea>
+                <div class="photo-row">
+                  <span class="saved"></span>
+                  <button class="btn btn-danger sp-delete" type="button">Delete photo</button>
+                </div>
+              </div>
+            </div>
+            <label class="dropzone spot-empty">
+              <input class="spot-input" type="file" accept="image/*,.heic,.heif" />
+              <strong class="sp-empty-title"></strong>
+              <small>Drop a photo here or click to choose one for this spot</small>
+            </label>
+          </div>
+
+          <form class="panel text-panel start-panel" hidden>
+            <h3>Start screen</h3>
+            <label>Name in this list <input name="name" maxlength="60" /></label>
+            <label>Link name <span class="hint">— the museum's address ends with <code>?m=</code> and this</span>
+              <input name="slug" maxlength="40" pattern="[a-z0-9\-]+" title="Small letters, numbers and dashes" /></label>
+            <label>Title <input name="title" maxlength="60" /></label>
+            <label>Subtitle <input name="subtitle" maxlength="120" /></label>
+            <label>Language of the texts
+              <select name="language"><option value="en">English</option><option value="el">Ελληνικά (Greek)</option></select>
+            </label>
+            <div class="danger-zone">
+              <button class="btn btn-danger delete-museum" type="button">Delete this museum</button>
+            </div>
+          </form>
+
+          <form class="panel text-panel finale-panel" hidden>
+            <h3>The hidden last room</h3>
+            <label class="check"><input type="checkbox" name="finaleEnabled" /> Show the last room behind the curtain</label>
+            <label>Sign above the curtain <input name="doorSign" maxlength="60" /></label>
+            <label>Room title <input name="finaleTitle" maxlength="60" /></label>
+            <label>Your message <textarea name="message" rows="8"></textarea></label>
+            <label>Signature <input name="signature" maxlength="60" /></label>
+          </form>
         </div>
       </section>
     </main>

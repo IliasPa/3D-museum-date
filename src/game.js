@@ -111,12 +111,14 @@ export class Game {
 
     this.screens = buildScreens(this.plan);
     this.world.add(this.screens.group);
-    // Videos download after the photos, so the walls fill up first.
-    let preloaded = false;
-    const preload = () => !preloaded && (preloaded = true) && this.screens.preload();
+    // Videos download after the photos (so the walls fill up first), a room ahead of you.
+    this.photosLoaded = false;
     this.frames = buildFrames(this.plan, config, this.renderer, (loaded, total) => {
       onPhotoProgress(loaded, total);
-      if (loaded >= total) preload();
+      if (loaded >= total && !this.photosLoaded) {
+        this.photosLoaded = true;
+        this.screens.preload(Math.max(0, this.roomIndex));
+      }
     });
     this.world.add(this.frames.group);
 
@@ -446,6 +448,7 @@ export class Game {
     if (index !== -1 && index !== this.roomIndex) {
       this.roomIndex = index;
       this.onRoomChange(this.plan.rooms[index], index);
+      if (this.photosLoaded) this.screens.preload(index);
     }
   }
 

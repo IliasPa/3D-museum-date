@@ -169,10 +169,11 @@ async function boot() {
   // Actions (A–Z keys, or the 😊 menu), short hints, and videos pausing the music.
   hud.onAction = (key) => game.performAction(key);
   game.onHint = (text) => hud.showHint(text, 3500);
-  game.onVideoChange = (playing, { muted } = {}) => {
+  game.onVideoChange = (playing, { muted, loading } = {}) => {
     if (playing) music.pauseForVideo();
     else music.resumeAfterVideo();
     if (playing && muted) hud.showHint('Tap the screen for sound 🔊', 5000);
+    else if (playing && loading) hud.showHint('The film is on its way… 🎬', 4000);
   };
 
   // 4. "Enter": start the music (must happen inside the tap for iPhone), play, meet the others.
@@ -211,9 +212,10 @@ async function boot() {
 /** Blank frames for the sign-in page preview: a few per room, soft colours, no downloads. */
 function previewPhotos(config) {
   const colors = ['#f3cfc8', '#cfe0d8', '#f6e1bd', '#dcd0ea', '#cadcee', '#f2d3de'];
-  const shapes = [[4, 3], [3, 4], [1, 1]];
+  const shapes = [[4, 3], [3, 4], [1, 1], [4, 3]];
+  const slots = [1, 4, 7, 10]; // spread around each room (layout.js numbers the spots clockwise)
   return config.rooms.flatMap((_, r) => shapes.map(([w, h], i) => ({
-    room: r + 1, width: w * 100, height: h * 100, color: colors[(r * 3 + i) % colors.length], title: '', date: '', caption: '',
+    room: r + 1, slot: slots[i], width: w * 100, height: h * 100, color: colors[(r * 4 + i) % colors.length], title: '', date: '', caption: '',
   })));
 }
 

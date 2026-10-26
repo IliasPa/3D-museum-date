@@ -358,6 +358,48 @@ textarea {
   width: auto;
 }
 
+/* The bin: drop a photo on it to delete it. */
+.bin {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.55rem 1rem;
+  border: 2px dashed rgba(179, 38, 30, 0.35);
+  border-radius: 999px;
+  color: #a33a30;
+  font-size: 0.85rem;
+  transition: transform 0.2s, background 0.2s, border-color 0.2s;
+}
+
+.bin-icon {
+  font-size: 1.3rem;
+  line-height: 1;
+  transition: transform 0.2s;
+}
+
+.dragging-card .bin {
+  border-color: #b3261e;
+  background: rgba(179, 38, 30, 0.06);
+  animation: bin-wiggle 1.2s ease-in-out infinite;
+}
+
+.bin.drop-over {
+  transform: scale(1.12);
+  border-style: solid;
+  background: rgba(179, 38, 30, 0.14);
+  animation: none;
+}
+
+.bin.drop-over .bin-icon {
+  transform: rotate(-14deg) scale(1.25);
+}
+
+@keyframes bin-wiggle {
+  0%, 100% { transform: rotate(0); }
+  25% { transform: rotate(-2deg); }
+  75% { transform: rotate(2deg); }
+}
+
 .upload-status {
   min-height: 1.5em;
   margin: 0;
@@ -365,10 +407,61 @@ textarea {
   font-weight: 600;
 }
 
+.photos-help {
+  margin: 0 0 0.8rem;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.photo-room {
+  margin-bottom: 1.4rem;
+  padding: 0.9rem 1rem 1rem;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.45);
+  transition: background 0.2s, box-shadow 0.2s;
+}
+
+.photo-room.file-over,
+.dragging-card .photo-room:hover {
+  background: rgba(255, 255, 255, 0.85);
+  box-shadow: 0 0 0 2px rgba(142, 21, 48, 0.25);
+}
+
+.photo-room h3 {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  margin: 0 0 0.7rem;
+  font-family: var(--serif);
+  font-size: 1.35rem;
+  font-weight: 500;
+  color: var(--wine);
+}
+
+.photo-room h3 small {
+  font-family: var(--sans);
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
 .photo-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(330px, 1fr));
   gap: 0.9rem;
+  min-height: 3.2rem;
+}
+
+.photo-room .photo-grid:empty::before {
+  content: 'No photos yet — drop some here.';
+  display: grid;
+  place-items: center;
+  grid-column: 1 / -1;
+  min-height: 3.2rem;
+  border: 2px dashed var(--line);
+  border-radius: 14px;
+  color: var(--muted);
+  font-size: 0.85rem;
 }
 
 .photo-card {
@@ -388,6 +481,44 @@ textarea {
 
 .photo-thumb {
   position: relative;
+}
+
+[data-panel="photos"] .photo-thumb {
+  cursor: grab;
+  touch-action: none; /* a finger on the picture drags the card instead of scrolling */
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+[data-panel="photos"] .photo-thumb img {
+  -webkit-user-drag: none;
+  pointer-events: none;
+}
+
+/* Dragging a card: the floating copy and the gap where it will land. */
+.drag-ghost {
+  position: fixed;
+  z-index: 50;
+  margin: 0;
+  pointer-events: none;
+  box-shadow: 0 18px 40px rgba(46, 34, 32, 0.25);
+  cursor: grabbing;
+  will-change: transform;
+}
+
+.drag-placeholder {
+  border-style: dashed;
+  border-color: rgba(142, 21, 48, 0.35);
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.drag-placeholder > * {
+  opacity: 0.25;
+}
+
+.dragging-card,
+.dragging-card * {
+  cursor: grabbing !important;
 }
 
 .photo-thumb img {
@@ -428,6 +559,11 @@ textarea {
 
 .photo-fields input[name="title"] {
   font-weight: 600;
+}
+
+.photo-fields > .saved {
+  min-height: 1em;
+  line-height: 1;
 }
 
 .photo-row {
@@ -492,61 +628,92 @@ textarea {
 }
 
 /* ── Texts ── */
-.texts-form fieldset {
+/* ── Panels under the floor plan ── */
+.panel {
   display: grid;
-  gap: 0.7rem;
-  max-width: 720px;
-  margin: 0 0 1.2rem;
-  padding: 1.1rem 1.2rem 1.2rem;
+  gap: 0.8rem;
+  max-width: 860px;
+  margin-top: 0.8rem;
+  padding: 1rem 1.2rem;
   border: 1px solid var(--line);
   border-radius: 16px;
   background: var(--paper);
+  animation: panel-in 0.25s ease-out;
 }
 
-.texts-form legend {
-  padding: 0 0.4em;
+@keyframes panel-in {
+  from { opacity: 0; transform: translateY(6px); }
+}
+
+.panel h3 {
+  margin: 0;
   font-family: var(--serif);
-  font-size: 1.25rem;
+  font-size: 1.3rem;
+  font-weight: 500;
   color: var(--wine);
 }
 
-.texts-form label {
+.text-panel label {
   display: grid;
   gap: 0.25rem;
   font-size: 0.85rem;
   color: var(--muted);
 }
 
-.texts-form label.check {
+.text-panel label.check {
   display: flex;
   align-items: center;
   gap: 0.5rem;
   color: var(--ink);
 }
 
-.texts-form label.check input {
+.text-panel label.check input {
   width: auto;
 }
 
-.texts-form textarea[name="message"] {
+.text-panel textarea[name="message"] {
   font-family: var(--serif);
   font-size: 1.1rem;
   font-style: italic;
 }
 
-.form-actions {
-  display: flex;
-  align-items: center;
+.text-panel .hint {
+  font-size: 0.75rem;
+}
+
+.danger-zone {
+  padding-top: 0.6rem;
+  border-top: 1px solid var(--line);
+}
+
+.spot-filled {
+  display: grid;
+  grid-template-columns: minmax(0, 260px) minmax(0, 1fr);
   gap: 1rem;
-  margin-bottom: 1.5rem;
+  align-items: start;
 }
 
-.save-state {
+.sp-photo {
+  width: 100%;
+  max-height: 260px;
+  object-fit: contain;
+  border-radius: 10px;
+  background: #f1ebe4;
+}
+
+.sp-where {
+  margin: 0;
   color: var(--muted);
+  font-size: 0.85rem;
+  font-weight: 600;
 }
 
-.danger {
-  border-color: rgba(179, 38, 30, 0.3) !important;
+.spot-filled .photo-row {
+  justify-content: space-between;
+}
+
+.spot-empty {
+  border-color: rgba(192, 57, 43, 0.4);
 }
 
 /* ── Music ── */
@@ -589,25 +756,69 @@ textarea {
   dominant-baseline: middle;
 }
 
-.plan-photo {
+.plan-badge-g {
   cursor: pointer;
+  outline: none;
 }
 
-.plan-photo:hover .plan-badge,
-.plan-photo:focus .plan-badge {
-  fill: var(--rose);
+.plan-filled .plan-badge {
+  fill: #2e8b57;
 }
 
-.plan-badge {
-  fill: var(--wine);
+.plan-empty .plan-badge {
+  fill: #c0392b;
 }
 
-.plan-video {
+.plan-video .plan-badge {
   fill: #1c1a1b;
 }
 
-.texts-form .hint {
-  font-size: 0.75rem;
+.plan-filled {
+  cursor: grab;
+  touch-action: none;
+}
+
+.plan-badge-g:hover .plan-badge,
+.plan-badge-g:focus-visible .plan-badge {
+  filter: brightness(1.2);
+}
+
+.plan-badge-g.selected .plan-badge,
+.plan-start-dot.selected .plan-start {
+  stroke: var(--gold);
+  stroke-width: 0.22;
+}
+
+.plan-badge-g.dragging {
+  opacity: 0.35;
+}
+
+.plan-badge-g.drop-onto .plan-badge {
+  stroke: #fff;
+  stroke-width: 0.2;
+  filter: brightness(1.25);
+}
+
+.plan-start-dot {
+  cursor: pointer;
+}
+
+.plan-finale-off {
+  opacity: 0.35;
+  stroke-dasharray: 0.4 0.3;
+}
+
+.key-filled,
+.key-empty {
+  font-weight: 600;
+}
+
+.key-filled {
+  color: #2e8b57;
+}
+
+.key-empty {
+  color: #c0392b;
 }
 
 .plan-number {
@@ -661,39 +872,18 @@ textarea {
   stroke: var(--rose);
 }
 
-.plan-photo {
-  cursor: grab;
-  touch-action: none;
-}
-
-.plan-photo.dragging {
-  opacity: 0.35;
-}
-
-.plan-photo.drop-onto .plan-badge {
-  fill: var(--rose);
-  stroke: #fff;
-  stroke-width: 0.12;
-}
-
 .plan-ghost circle {
-  fill: var(--rose);
+  fill: #2e8b57;
   stroke: #fff;
   stroke-width: 0.1;
 }
 
-.plan-ghost text {
-  text-anchor: middle;
+.plan-ghost.video circle {
+  fill: #1c1a1b;
 }
 
-.room-panel {
-  display: grid;
-  gap: 0.8rem;
-  margin-top: 0.8rem;
-  padding: 1rem 1.2rem;
-  border: 1px solid var(--line);
-  border-radius: 16px;
-  background: var(--paper);
+.plan-ghost text {
+  text-anchor: middle;
 }
 
 .room-panel-row {
@@ -764,7 +954,48 @@ textarea {
 
 .toast.show {
   opacity: 1;
+  pointer-events: auto;
   transform: translate(-50%, 0);
+}
+
+.toast-action {
+  margin-left: 0.9em;
+  padding: 0.2em 0.8em;
+  border: 1px solid rgba(255, 248, 241, 0.6);
+  border-radius: 999px;
+  background: none;
+  color: var(--cream);
+  font-weight: 600;
+}
+
+/* ── Storage meter ── */
+.storage {
+  margin-top: 1.4rem;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.storage-bar {
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(46, 34, 32, 0.1);
+}
+
+.storage-bar span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--rose), var(--wine));
+  transition: width 0.6s ease;
+}
+
+.storage.full .storage-bar span {
+  background: #b3261e;
+}
+
+.storage-text {
+  margin: 0.35rem 0 0;
 }
 
 /* ── Phones ── */
@@ -789,5 +1020,13 @@ textarea {
   .photo-thumb img {
     width: 80px;
     height: 80px;
+  }
+
+  .spot-filled {
+    grid-template-columns: 1fr;
+  }
+
+  .bin-text {
+    display: none;
   }
 }

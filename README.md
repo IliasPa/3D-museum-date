@@ -23,16 +23,19 @@ If you ever move the site to another address (e.g. Netlify or your own domain), 
 ## 2. Make a museum for a couple (`/admin`)
 
 1. Go to **https://iliaspa.github.io/3D-museum-date/admin/** and sign in with `iliasparaskevas3@gmail.com`.
-2. Under **Museums**, type a name (e.g. "Maria & Nikos") and click **+ New museum**. It gets its own link, e.g. `…/3D-museum-date/?m=maria-nikos`. Greek names work too ("Μαρία & Νίκος" becomes `maria-nikos`). You can change the link name under *Texts*.
-3. **Photos:** drag photos in, or click to choose them. JPG, PNG and iPhone HEIC all work, at any size. They're resized, compressed and stripped of location data in your browser before uploading. Choose the room first with "New photos go to…". Then give each photo a title, a date (any text, like "Summer 2021") and a caption; changes save by themselves. Use ← → to change the walking order. "Add 10 sample photos" fills a museum with placeholders, if you want to try things out.
-4. **Videos:** choose a video (any phone video, including iPhone HEVC). Your browser converts it to a small MP4 that plays everywhere (up to 2 minutes, about 12 MB a minute). It hangs on the wall **in front of a bench** in the room you chose, and plays, with sound, when someone sits on that bench. Each room has benches for two videos; rooms grow longer if you add more.
+2. Under **Museums**, type a name (e.g. "Maria & Nikos") and click **+ New museum**. It gets its own link, e.g. `…/3D-museum-date/?m=maria-nikos`. Greek names work too ("Μαρία & Νίκος" becomes `maria-nikos`). You can change the link name in *Preview* → the **start** dot.
+3. **Photos:** drag photos in, or click to choose them. JPG, PNG and iPhone HEIC all work, at any size. They're resized, compressed and stripped of location data in your browser before uploading. New photos fill the free spots room by room; drop them straight onto a room to put them there. The photos are grouped by room: give each a title, a date (any text, like "Summer 2021") and a caption; changes save by themselves. **Drag a photo by its picture** to change the order, or into another room. To delete one, drag it onto the **bin** (you get a few seconds to Undo). "Add 10 sample photos" fills a museum with placeholders, if you want to try things out.
+4. **Videos:** choose a video: any phone video (including iPhone HEVC/HDR), any length. Your browser converts it to an MP4 that plays everywhere, of **at most 50 MB**: short videos get the best quality (about 12 MB a minute), longer ones a lower quality so they still fit (a 6-minute video comes out at about 30–45 MB in 960×540; past roughly 25 minutes a video can't fit). It works in Safari and Chrome; converting takes from a few seconds to a few minutes. It hangs on the wall **in front of a bench** in the room you chose, and plays, with sound, when someone sits on that bench. Each room has benches for two videos.
 5. **Guests:** add the couple's Google (Gmail) addresses. Use exactly the address they sign in with. Then send them **this museum's link** (shown there, with a Copy button). If you add an email that's already on the list, or that's already invited to another museum, you get a short notice.
-6. **Texts:** the link name, the title on the start screen and **the personal message** in the hidden last room. Click **Save**.
-7. **Music:** upload their song (MP3, up to 8 MB). Without one, a gentle music-box tune plays.
-8. **Preview (and layout):** a floor plan, seen from above, built with the same code as the 3D museum, so it shows exactly where every photo, bench and video screen will be. Everything you change here saves by itself:
-   - **Click a room** to rename it, change its wall and sign colours, make it wider or longer (8–30 m; a room still grows if its photos need more wall), move it earlier or later in the walk, or remove it. Its photos and videos move with it; a removed room's photos go to the room next to it. **+ Add room** adds one at the end.
-   - **Drag a number** onto another room to move that photo there, or onto another photo to take its place. Drag a **▶** to move a video. Click a number to edit that photo.
-   - **Walk through ↗** opens the real 3D museum. As the curator you can visit any museum, and you stay invisible to the couple unless you add your own email as a guest.
+6. **Music:** upload their song (MP3, up to 8 MB). Without one, a gentle music-box tune plays.
+7. **Preview:** a floor plan, seen from above, built with the same code as the 3D museum, so it shows exactly where every photo, bench and video screen will be. Every room has **fixed spots** for photos on all four walls (also on the back wall); they only move if you make the room bigger or smaller. Click anything to edit it right below the plan — everything saves by itself:
+   - **A numbered spot:** green spots have a photo: you see it with its title, date and caption to edit (or delete). Red spots are free: drop or choose a photo to hang it exactly there. Drag a green spot onto another spot to move that photo (onto a green one, the two swap), or onto a room to put it in that room's first free spot.
+   - **A room:** rename it, change its wall and sign colours, make it wider or longer (8–30 m), move it earlier or later in the walk, or remove it. Its photos and videos move with it; a removed room's photos go to the room next to it. **+ Add room** adds one at the end.
+   - **The start dot:** the start screen: its title and subtitle, the language, the name in your list and the link name (and, at the bottom, deleting the museum).
+   - **The last room:** the hidden room behind the curtain: switch it on or off, the sign above the curtain, its title, **your personal message** and the signature.
+   - Drag a **▶** onto another room to move a video. **Walk through ↗** opens the real 3D museum. As the curator you can visit any museum, and you stay invisible to the couple unless you add your own email as a guest.
+
+**Storage.** Everything is stored in Firebase's free plan: **1 GB in total, for all museums together**. The bar under the museum list shows how much is used. A photo takes about 1–1.4 MB (sharp wall and full-screen copies), a video up to 50 MB, a song up to 8 MB. So 1 GB holds, for example, 10 couples with 40 photos, 2 short videos and a song each.
 
 You can make as many museums as you like, one per couple, each with its own link, photos, videos, texts, song and guests. Nobody can enter a museum they're not invited to: the database refuses it, even if someone has the link. If an email is invited to several museums, that person picks one of *their* museums after signing in.
 
@@ -40,10 +43,13 @@ You can make as many museums as you like, one per couple, each with its own link
 
 - Both people open their museum's link on their phones or computers and sign in with Google.
 - Before entering, each dresses up their avatar (a little character with bendable arms and legs, hands with fingers and a face that shows feelings):
-  - **Body:** guy or girl, skin tone, eye colour.
-  - **Hair:** 10 styles (incl. bald) in 11 colours, plus freckles, stubble, moustache or beard.
-  - **Outfit:** sweater, T-shirt, hoodie or dress; trousers, shorts or skirt; shoe colour.
-  - **Extras:** beanie, cap, bow, flower crown or crown; round glasses, shades or heart glasses; scarf, backpack, earrings or a heart.
+  - **Body:** guy or girl; slim, regular or cuddly; 8 skin tones.
+  - **Face:** eyes (round, lashes, sparkly, sleepy or happy ^^) in 6 colours; eyebrows; mouth (smile, grin, cat :3, small); rosy, heart-shaped or no blush; freckles, stubble, moustache or beard.
+  - **Hair:** 14 styles (incl. spiky, mohawk, afro, braids and bald) in 12 colours.
+  - **Top:** sweater, T-shirt, hoodie, shirt, open jacket or dress; plain, heart, star, stripes or dots; 12 colours.
+  - **Bottom:** trousers, shorts or skirt; sneakers or boots; their colours.
+  - **Hats:** beanie, cap, beret, sun hat, bow, bunny or cat ears, flowers or a crown, in 8 colours; round, square, heart, star glasses or shades.
+  - **Extras:** scarf, necklace, bow tie or tie; backpack, angel wings or a cape; earrings or headphones; a heart balloon to hold.
   - 🎲 picks a random outfit.
 - Inside, you see each other with name tags. The ♥ button sends hearts the other person sees, and hearts float up whenever you stand close together. **Walk side by side and you hold hands.**
 - The chip under the room name shows who's with you. You'll see a short note when someone arrives or leaves.
@@ -80,9 +86,9 @@ You can make as many museums as you like, one per couple, each with its own link
 - Photos, texts and guest lists live in Firebase (Firestore), protected by the rules in `firestore.rules`. Only the curator and that museum's guests can read a museum, and only the curator can change anything. Live positions (Realtime Database, `database.rules.json`) are readable only by that museum's guests. Even though the website is public, the photos are not.
 - The settings in `src/firebase-config.js` are public by design. Every Firebase website ships them, and the rules do the protecting.
 - **The GitHub secret alert:** GitHub flags the `apiKey` in `src/firebase-config.js` as a "Google API Key". That's expected. A Firebase web key identifies the project and has to be sent to every visitor's browser, so it can't be hidden, and on its own it can't read anything. It is also restricted: it only works from `iliaspa.github.io`, the Google sign-in pop-up and `localhost:5173`/`4173`, and only for sign-in and the databases. To close the alert: repository → **Security → Secret scanning** → the alert → **Close as → Won't fix**.
-- On the free Spark plan this comfortably covers many couples. The limits are 1 GB of stored data (about 1,500 photos), 10 GB of downloads a month (about 1,500 museum visits; photos are cached on the device after the first visit) and 100 people online at once. No credit card is needed. If you ever hit a limit, the museum just pauses until the next day or month. It never charges you.
+- On the free Spark plan this comfortably covers many couples. The limits are 1 GB of stored data (see **Storage** in section 2; the curator page shows how much is used), 10 GB of downloads a month (photos, songs and videos are cached on the device after the first visit; a video is only downloaded when its room is visited) and 100 people online at once. No credit card is needed. If you ever hit a limit, the museum just pauses until the next day or month. It never charges you.
 - Photos are stored inside the database rather than as files, so each is capped at 1600 px for full screen. That's sharp on phones and laptops.
-- Videos use the same free storage (about 12 MB per minute of video), so keep them short and sweet. A handful of 1-minute videos per couple is fine.
+- Videos use the same free storage (up to 50 MB each) and the same 10 GB of monthly downloads, so a few short videos per couple go a long way.
 
 ## 5. Develop on your Mac
 
@@ -140,7 +146,7 @@ The built-in avatar is made of simple shapes, and you can switch everyone to a r
 admin/index.html          the curator page
 src/admin/                curator logic: admin.js (UI), store.js (database writes),
                           imageTools.js (resize/HEIC in the browser), videoTools.js (video
-                          conversion in the browser), floorPlan.js (preview)
+                          conversion in the browser), floorPlan.js (preview), sortable.js (drag & drop)
 src/backend/              firebase.js (setup + Google sign-in), museumData.js (reading museums),
                           presence.js (live positions of everyone in the museum)
 src/firebase-config.js    Firebase project settings + admin email

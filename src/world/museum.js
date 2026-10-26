@@ -5,7 +5,7 @@
  */
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { WALL_THICKNESS as T, WALL_HEIGHT as H } from './layout.js';
+import { WALL_THICKNESS as T, WALL_HEIGHT as H, WELCOME_SIGN_WIDTH } from './layout.js';
 import { woodFloorTexture, plasterTexture, textTexture, worldSpaceUVs } from './textures.js';
 
 const DARK_WOOD = '#5a3a28';
@@ -184,7 +184,7 @@ export function buildMuseum(plan, config, renderer) {
     { text: config.title, font: '500 150px "EB Garamond", Georgia, serif', color: first.trim, gap: 10 },
     { text: config.subtitle, font: 'italic 400 64px "EB Garamond", Georgia, serif', color: first.trim, letterSpacing: '2px' },
   ], { width: 1600, height: 420 });
-  const welcomeSign = new THREE.Mesh(new THREE.PlaneGeometry(5.6, 1.47), new THREE.MeshLambertMaterial({ map: welcome, transparent: true }));
+  const welcomeSign = new THREE.Mesh(new THREE.PlaneGeometry(WELCOME_SIGN_WIDTH, WELCOME_SIGN_WIDTH * 0.2625), new THREE.MeshLambertMaterial({ map: welcome, transparent: true }));
   welcomeSign.position.set(0, 2.4, first.z1 - 0.01);
   welcomeSign.rotation.y = Math.PI; // face north, into the room
   group.add(welcomeSign);

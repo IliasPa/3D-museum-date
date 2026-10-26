@@ -55,6 +55,7 @@ export async function loadMuseum(museumId) {
     return {
       id: d.id,
       room: p.room ?? 1,
+      slot: p.slot, // its spot on the walls (layout.js)
       title: p.title ?? '',
       date: p.date ?? '',
       caption: p.caption ?? '',

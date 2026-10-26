@@ -42,29 +42,32 @@ const GESTURES = {
   pinch: { t: 0.5, i: 0.3, m: 0.4, r: 0.85, p: 0.9, v: 0 },
   cup: { t: 0.25, i: 0.25, m: 0.25, r: 0.25, p: 0.25, v: 0 },
   claw: { t: 0.3, i: 0.45, m: 0.45, r: 0.45, p: 0.45, v: 0.3 },
-  heart: { t: 0, i: 0.55, m: 0.55, r: 0.55, p: 0.55, v: 0 },
+  heart: { t: 0, i: 0.55, m: 0.6, r: 0.65, p: 0.7, v: 0, o: 1 }, // o: thumbs turned down
 };
 /** Fingers wiggling (tickling). */
 const wiggle = (t) => ({ t: 0.4, i: 0.5 + 0.5 * Math.sin(t * 30), m: 0.5 + 0.5 * Math.sin(t * 30 + 1), r: 0.5 + 0.5 * Math.sin(t * 30 + 2), p: 0.5 + 0.5 * Math.sin(t * 30 + 3), v: 0.2 });
 
 /**
  * One hand: where the palm goes (body space: feet at 0, head ≈ 1.0 high,
- * facing +z, the avatar's right is −x), which way it faces, and a gesture
- * (a name from GESTURES or curls like wiggle()).
+ * facing +z, the avatar's right is −x), which way it faces, a gesture
+ * (a name from GESTURES or curls like wiggle()) and, optionally, which way
+ * the fingers point (the wrist bends; otherwise they follow the forearm).
  */
-function hand(S, [x, y, z], palm, gesture) {
+function hand(S, [x, y, z], palm, gesture, tip) {
   const out = { [`hand${S}X`]: x, [`hand${S}Y`]: y, [`hand${S}Z`]: z };
   if (palm) Object.assign(out, { [`palm${S}X`]: palm[0], [`palm${S}Y`]: palm[1], [`palm${S}Z`]: palm[2] });
+  if (tip) Object.assign(out, { [`tip${S}X`]: tip[0], [`tip${S}Y`]: tip[1], [`tip${S}Z`]: tip[2], [`tip${S}W`]: 1 });
   const g = typeof gesture === 'string' ? GESTURES[gesture] : gesture;
-  if (g) for (const f of ['t', 'i', 'm', 'r', 'p', 'v']) out[`${S}_${f}`] = g[f];
+  if (g) for (const f of ['t', 'i', 'm', 'r', 'p', 'v', 'o']) out[`${S}_${f}`] = g[f] ?? 0;
   return out;
 }
-/** Right and left hand: each [position, palm, gesture]. */
+/** Right and left hand: each [position, palm, gesture, fingertips]. */
 const hands = (r, l) => ({ ...hand('R', ...r), ...hand('L', ...l) });
-/** Both hands mirrored: give the LEFT hand's position/palm, the right one copies it. */
-const both = ([x, y, z], palm, gesture) => hands(
-  [[-x, y, z], palm && [-palm[0], palm[1], palm[2]], gesture],
-  [[x, y, z], palm, gesture],
+const mirror = (v) => v && [-v[0], v[1], v[2]];
+/** Both hands mirrored: give the LEFT hand's position/palm/fingertips, the right one copies it. */
+const both = ([x, y, z], palm, gesture, tip) => hands(
+  [[-x, y, z], mirror(palm), gesture, mirror(tip)],
+  [[x, y, z], palm, gesture, tip],
 );
 // Palm directions (for the left hand; `both` mirrors them).
 const FORWARD = [0, 0, 1];
@@ -118,7 +121,6 @@ function once(at, fn) {
 export const EMOTES = {
   A: {
     label: 'Applaud', emoji: '👏', duration: 2.4, upper: true,
-    start: (c) => bubble(c, '👏'),
     pose: (t) => {
       const apart = (Math.sin(t * TAU * 3.2) + 1) / 2;
       return { ...both([0.035 + apart * 0.09, 0.66, 0.3], [-1, 0, 0.15], 'open'), headRX: 0.06 + 0.04 * Math.sin(t * 6), eyesOpen: 0.55, browY: 0.3 };
@@ -127,7 +129,6 @@ export const EMOTES = {
   B: {
     label: 'Blush', emoji: '😊', duration: 2.8, upper: true,
     start: (c) => {
-      bubble(c, '😊');
       const p = headPos(c);
       c.hearts?.burst(p.x, p.y + 0.3, p.z, 3, 0.2);
     },
@@ -139,7 +140,6 @@ export const EMOTES = {
   },
   C: {
     label: 'Cry', emoji: '😢', duration: 3.2, upper: true,
-    start: (c) => bubble(c, '😢'),
     pose: (t) => ({
       ...both([0.09 + 0.015 * Math.sin(t * 10), 0.93, 0.31], [-0.3, 0, -1], 'fist'), // rubbing eyes
       headRX: 0.25, bodyY: 0.012 * Math.sin(t * 14), eyesOpen: 0.15, mouthOpen: 0.25, browTilt: -1, browY: 0.2,
@@ -153,7 +153,6 @@ export const EMOTES = {
   },
   D: {
     label: 'Dance', emoji: '💃', loop: true, cancelOnMove: true,
-    start: (c) => bubble(c, '💃'),
     pose: (t) => {
       const beat = t * TAU * 1.1;
       const s = Math.sin(beat);
@@ -166,14 +165,9 @@ export const EMOTES = {
         eyesOpen: 0.6, browY: 0.3,
       };
     },
-    tick: every(0.7, (c) => {
-      const p = headPos(c);
-      c.fx.emoji(p.add(new THREE.Vector3((Math.random() - 0.5) * 0.6, 0.2, 0)), Math.random() < 0.5 ? '🎵' : '🎶', { vy: 0.5, life: 1.6, size: 0.14 });
-    }),
   },
   E: {
     label: 'Eat with chopsticks', emoji: '🍜', duration: 4.4, upper: true, props: ['chopsticks', 'bowl'],
-    start: (c) => bubble(c, '🍜'),
     pose: (t) => {
       const p = (t % 1.3) / 1.3;
       const bite = Math.sin(p * Math.PI) ** 2; // 0 at the bowl, 1 at the mouth
@@ -185,11 +179,9 @@ export const EMOTES = {
         mouthOpen: bite > 0.75 ? 0.5 : 0.18 * Math.abs(Math.sin(t * 12)), headRX: 0.12 - 0.12 * bite, eyesOpen: 0.7,
       };
     },
-    tick: once(3.6, (c) => bubble(c, '😋', 1.2)),
   },
   F: {
     label: 'Flip', emoji: '🤸', duration: 1.4, lock: true,
-    start: (c) => bubble(c, '🤸', 1.2),
     pose: (t) => {
       const u = clamp((t - 0.18) / 1.0); // in the air between 0.18 s and 1.18 s
       const air = Math.sin(Math.PI * u);
@@ -216,24 +208,31 @@ export const EMOTES = {
   },
   H: {
     label: 'Hug', emoji: '🤗', duration: 2.8, lock: true, needsPartner: true,
-    start: (c) => bubble(c, '🤗'),
     pose: hugPose,
     tick: once(0.6, (c) => heartsBetween(c, 6)),
   },
   hugged: {
     label: 'Hugged', emoji: '🥰', duration: 2.8, lock: true, reaction: true,
-    start: (c) => bubble(c, '🥰'),
     pose: hugPose,
   },
   heart: {
-    label: 'Heart hands', emoji: '💗', duration: 2.4, upper: true,
-    start: (c) => bubble(c, '💗'),
-    // Fingers curved into the top of a heart, thumbs touching at the bottom.
-    pose: (t) => ({ ...both([0.03, 0.82, 0.33], [-0.3, 0, -1], 'heart'), headRZ: 0.15 * Math.sin(t * 3), blush: 0.6, eyesOpen: 0.45, browY: 0.3 }),
-    tick: once(0.5, (c) => {
-      const p = headPos(c);
-      c.hearts?.burst(p.x, p.y + 0.2, p.z, 6, 0.25);
+    label: 'Heart hands', emoji: '💗', duration: 2.8, upper: true, props: ['heart'],
+    // Palms facing each other under the chin, fingers curled over into the two
+    // round tops of a heart, thumbs turned down to its tip — with a little
+    // glowing heart beating between them.
+    pose: (t) => ({
+      ...both([0.085, 0.77, 0.3], [-1, 0, -0.3], 'heart', [-0.35, 1, 0.05]),
+      headRZ: 0.12 * Math.sin(t * 3), headRX: 0.08, blush: 0.6, eyesOpen: 0.45, browY: 0.3,
     }),
+    tick: (t, dt, c, state) => {
+      const beat = Math.max(0, Math.sin(t * 7));
+      c.avatar.props?.heart?.scale.setScalar(0.85 + 0.25 * beat * beat);
+      if (t > 0.6 && !state.burst) {
+        state.burst = true; // a few hearts float up out of the hands
+        const p = c.avatar.props?.heart?.getWorldPosition(new THREE.Vector3()) ?? headPos(c);
+        c.hearts?.burst(p.x, p.y + 0.1, p.z, 4, 0.15);
+      }
+    },
   },
   I: {
     label: 'Ignore', emoji: '💁', duration: 2.8, cancelOnMove: true,
@@ -263,22 +262,18 @@ export const EMOTES = {
         ...both([0.28, 0.4 + 0.62 * air, 0.05 + 0.1 * air], FORWARD, 'open'), browY: 0.5 * air,
       };
     },
-    tick: once(0.35, (c) => c.fx.emoji(headPos(c).add(new THREE.Vector3(0, 0.3, 0)), '✨', { vy: 0.3, life: 0.8, size: 0.14 })),
   },
   K: {
     label: 'Kiss', emoji: '😘', duration: 2.2, lock: true, needsPartner: true,
-    start: (c) => bubble(c, '😘'),
     pose: kissPose,
     tick: once(1.0, (c) => heartsBetween(c, 8)),
   },
   kissed: {
     label: 'Kissed', emoji: '😳', duration: 2.6, upper: true, reaction: true,
-    start: (c) => bubble(c, '😳', 2.2),
     pose: (t) => (t < 1.2 ? kissPose(t) : { ...both([0.2, 0.93, 0.29], [-0.7, 0, -0.7], 'open'), blush: 1, eyesOpen: 0.25, headRZ: -0.2, browY: 0.4 }),
   },
   blowkiss: {
     label: 'Blow a kiss', emoji: '😘', duration: 2.2, upper: true,
-    start: (c) => bubble(c, '😘'),
     pose: (t) => {
       const out = ramp(t, 0.6, 1.0);
       return {
@@ -303,7 +298,6 @@ export const EMOTES = {
       mouthOpen: 0.85 + 0.15 * Math.sin(t * 18), eyesOpen: 0.1, browY: 0.5,
       ...both([0.08, 0.5, 0.24], TO_ME, 'relaxed'), // holding the belly
     }),
-    tick: every(0.5, (c) => c.fx.emoji(headPos(c), '😂', { vx: (Math.random() - 0.5) * 0.6, vy: 0.6, life: 1.1, size: 0.12 })),
   },
   M: {
     label: 'Meow', emoji: '🐱', duration: 2.6, upper: true, props: ['catEars'],
@@ -318,7 +312,6 @@ export const EMOTES = {
   },
   N: {
     label: 'Nap', emoji: '😴', loop: true, cancelOnMove: true,
-    start: (c) => bubble(c, '😴'),
     pose: (t) => {
       const down = ramp(t, 0, 0.9);
       return {
@@ -327,10 +320,6 @@ export const EMOTES = {
         mouthOpen: 0.12 * (0.5 + 0.5 * Math.sin(t * 1.5)) * down,
       };
     },
-    tick: every(1.1, (c, t) => {
-      if (t < 1) return;
-      c.fx.emoji(headPos(c).add(new THREE.Vector3(0, 0.15, 0)), '💤', { vy: 0.35, vx: 0.1, life: 2, size: 0.16 });
-    }),
   },
   O: {
     label: 'Oops', emoji: '🙈', duration: 2.8, lock: true,
@@ -351,7 +340,6 @@ export const EMOTES = {
   },
   P: {
     label: 'Puppy eyes', emoji: '🥺', duration: 2.8, upper: true,
-    start: (c) => bubble(c, '🥺'),
     pose: (t) => ({
       eyeScale: 1.45, headRZ: 0.3, headRX: -0.12, browTilt: -0.8, browY: 0.3,
       ...both([0.03, 0.8, 0.32], INWARD, 'relaxed'), // hands together under the chin
@@ -367,23 +355,29 @@ export const EMOTES = {
     }),
   },
   R: {
-    label: 'Rainbow', emoji: '🌈', duration: 2.6, upper: true,
-    start: (c) => bubble(c, '🌈'),
+    label: 'Rainbow', emoji: '🌈', duration: 2.8, upper: true,
+    // Gather both hands low at one side, then throw them up and apart — the
+    // rainbow springs out of them, arching over your head.
     pose: (t) => {
-      const u = ramp(t, 0.1, 0.55);
+      const wind = pulse(t, 0, 0.28, 0.32, 0.45);
+      const up = ramp(t, 0.32, 0.55) * (1 - ramp(t, 2.25, 2.8));
+      const low = (x) => [x - 0.08 * wind, 0.4 + 0.04 * wind, 0.22];
+      const high = (x) => [x * 2.9, 1.02, 0.2];
+      const at = (x) => low(x).map((v, k) => lerp(v, high(x)[k], up));
       return {
         ...hands(
-          [[lerp(-0.3, -0.18, u), lerp(0.45, 1.06, u), lerp(-0.1, 0.33, u)], [0, 0, lerp(-1, 1, u)], t < 0.5 ? 'fist' : 'open'],
-          [[0.2, 0.42, 0.05], INWARD, 'relaxed'],
+          [at(-0.12), [0, lerp(-0.4, 0.5, up), 1], up > 0.4 ? 'open' : 'fist', up > 0.4 ? [-0.5, 1, 0.2] : null],
+          [at(0.12), [0, lerp(-0.4, 0.5, up), 1], up > 0.4 ? 'open' : 'fist', up > 0.4 ? [0.5, 1, 0.2] : null],
         ),
-        headRX: -0.35 * ramp(t, 0.4, 0.8), eyesOpen: 0.7, browY: 0.4,
+        bodyRX: 0.14 * wind - 0.08 * up, bodyRY: -0.3 * wind, headRX: -0.32 * up, headRY: -0.2 * wind,
+        eyesOpen: 1, eyeScale: 1 + 0.15 * up, mouthOpen: 0.35 * up, browY: 0.6 * up,
       };
     },
-    tick: once(0.5, (c) => {
+    tick: once(0.42, (c) => {
       const p = c.position.clone();
-      p.x += Math.sin(c.facing) * 0.7;
-      p.z += Math.cos(c.facing) * 0.7;
-      p.y = 1.3;
+      p.x += Math.sin(c.facing) * 0.2;
+      p.z += Math.cos(c.facing) * 0.2;
+      p.y += 1.02; // from the hands
       c.fx.rainbow(p, c.facing);
     }),
   },
@@ -394,7 +388,6 @@ export const EMOTES = {
   },
   T: {
     label: 'Tickle', emoji: '😈', duration: 2.4, lock: true, needsPartner: true,
-    start: (c) => bubble(c, '😈'),
     pose: (t, c) => ({
       rigRY: c.partner?.angle ?? 0, rigZ: 0.15 * ramp(t, 0, 0.3), bodyRX: 0.2,
       ...hands(
@@ -406,7 +399,6 @@ export const EMOTES = {
   },
   tickleair: {
     label: 'Tickle', emoji: '🤏', duration: 1.6, upper: true,
-    start: (c) => bubble(c, '🤏'),
     pose: (t) => ({
       ...hands([[-0.15, 0.75, 0.42], FORWARD, wiggle(t)], [[0.15, 0.75, 0.42], FORWARD, wiggle(t + 0.3)]),
       eyesOpen: 0.5, browY: 0.3,
@@ -425,7 +417,6 @@ export const EMOTES = {
         mouthOpen: 0.9, eyesOpen: 0.1, bodyY: 0.012 * Math.sin(t * 22), browY: 0.5,
       };
     },
-    tick: every(0.35, (c) => c.fx.emoji(headPos(c), '😂', { vx: (Math.random() - 0.5) * 0.7, vy: 0.6, life: 1, size: 0.12 })),
   },
   U: {
     label: 'Uh-oh!', emoji: '🤩', duration: 2.4, cancelOnMove: true,
@@ -437,7 +428,6 @@ export const EMOTES = {
   },
   V: {
     label: 'Victory', emoji: '✌️', duration: 2.2, upper: true,
-    start: (c) => bubble(c, '✌️'),
     pose: () => ({
       ...hands([[-0.3, 1.06, 0.18], [0, 0, 1], 'peace'], [[0.32, 0.47, 0.04], INWARD, 'fist']), // ✌️ up, other hand on the hip
       wink: 1, headRZ: -0.25, blush: 0.3, browY: 0.3,
@@ -445,7 +435,6 @@ export const EMOTES = {
   },
   W: {
     label: 'Wave', emoji: '👋', duration: 2.2, upper: true,
-    start: (c) => bubble(c, '👋'),
     pose: (t) => ({ ...hand('R', [-0.33 + 0.06 * Math.sin(t * 9), 1.05, 0.14], [0.35 * Math.sin(t * 9), 0, 1], 'open'), headRZ: 0.15, eyesOpen: 0.7, browY: 0.3 }),
   },
   X: {
@@ -458,7 +447,6 @@ export const EMOTES = {
   },
   Y: {
     label: 'Yawn', emoji: '🥱', duration: 3, upper: true,
-    start: (c) => bubble(c, '🥱'),
     pose: (t) => {
       const stretch = pulse(t, 0.3, 0.9, 2.0, 2.6);
       return {
@@ -470,7 +458,6 @@ export const EMOTES = {
   },
   Z: {
     label: 'Zombie walk', emoji: '🧟', loop: true, toggle: true, upper: true, walkStyle: 'zombie',
-    start: (c) => bubble(c, '🧟'),
     pose: (t) => ({
       ...hands(
         [[-0.15, 0.75 + 0.04 * Math.sin(t * 3), 0.6], [0, -1, 0.2], 'claw'],

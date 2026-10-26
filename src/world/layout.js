@@ -25,20 +25,27 @@ export const DOOR_WIDTH = 2.4;
 export const DOOR_HEIGHT = 3.0;
 export const FINALE_DOOR_WIDTH = 1.8;
 
-export const ROOM_SIZE = 12; // starting width & depth of a room; grows if it needs more wall
+export const ROOM_SIZE = 12; // starting width & depth of a room (the curator can change it)
 export const MIN_ROOM = 8; // smallest / largest size the curator can pick for a room
 export const MAX_ROOM = 30;
-const MAX_ROOM_WIDTH = 18; // past this, rooms only get longer (a gallery hall)
 const FINALE_SIZE = 9;
 const CORNER_MARGIN = 1.0; // keep frames this far from corners…
-const DOOR_MARGIN = 0.8; // …and from door openings
+const DOOR_MARGIN = 0.8; // …and from door openings…
+const SIGN_MARGIN = 0.3; // …and from the welcome sign
 const FRAME_BORDER = 0.1; // frame moulding width on each side of the photo
 const BENCH_OFFSET = 2.3; // benches stand this far either side of the centre aisle
 const SCREEN = { maxWidth: 2.2, maxHeight: 1.3, gap: 1.5 }; // video screens (gap = wall kept free either side of centre)
+export const WELCOME_SIGN_WIDTH = 5.6; // on the first room's back wall (museum.js)
 
 /**
- * @param photos [{ room, width, height, … }]
+ * Every room has fixed spots for photos along all four walls — they only
+ * move when the room's size changes. A photo remembers its spot (`slot`, an
+ * index into its room's spots); photos without one fill the free spots in
+ * walking order. A video screen covers the spots behind it.
+ *
+ * @param photos [{ room, slot?, width, height, … }] in walking order
  * @param videos [{ room, width, height, … }] — each hangs on the wall in front of a bench
+ * @returns { rooms, doors, frames (filled spots), spots (all of them), benches, start, bounds }
  */
 export function planMuseum(config, photos, videos = []) {
   const defs = config.rooms.length ? config.rooms : [{ title: 'Gallery', wall: '#eee6dc', trim: '#6b4a35' }];
@@ -51,43 +58,46 @@ export function planMuseum(config, photos, videos = []) {
   for (const video of videos) videosByRoom[roomIndexFor(video.room, defs)].push(video);
 
   const rooms = [];
-  const frames = [];
+  const spots = [];
   const benches = [];
   let zSouth = 0; // interior face of the current room's south wall
 
   defs.forEach((def, index) => {
-    const isFirst = index === 0;
-    // The curator can choose a size (layout editor); rooms still grow if their photos need more wall.
     const fit = (v) => Math.min(MAX_ROOM, Math.max(MIN_ROOM, v));
-    let width = fit(def.width ?? ROOM_SIZE);
+    const width = fit(def.width ?? ROOM_SIZE);
     let depth = fit(def.depth ?? ROOM_SIZE);
-    let placed = null;
+    const doors = {
+      southDoor: index > 0,
+      northDoor: index < defs.length - 1 || config.finale.enabled,
+      northDoorWidth: index === defs.length - 1 ? FINALE_DOOR_WIDTH : DOOR_WIDTH,
+      welcomeSign: index === 0,
+    };
+    // A room keeps the size the curator chose. Only if it holds more than
+    // fits (more photos than spots, more videos than benches) does it grow longer.
+    let rect;
+    let roomSpots;
     let roomBenches;
-    // Grow the room until all of its photos fit on the walls and every video has a bench.
-    for (let attempt = 0; !placed; attempt++) {
-      const rect = { x0: -width / 2, x1: width / 2, z0: zSouth - depth, z1: zSouth };
+    for (;;) {
+      rect = { x0: -width / 2, x1: width / 2, z0: zSouth - depth, z1: zSouth };
       roomBenches = benchesFor(rect, index);
+      roomSpots = wallSpots(rect, settings, doors);
       const roomVideos = videosByRoom[index];
       if (roomVideos.length <= roomBenches.length) {
         roomVideos.forEach((video, i) => attachScreen(roomBenches[i], video, rect));
-        placed = placeFrames(rect, photosByRoom[index], settings, {
-          southDoor: !isFirst,
-          northDoor: index < defs.length - 1 || config.finale.enabled,
-          northDoorWidth: index === defs.length - 1 ? FINALE_DOOR_WIDTH : DOOR_WIDTH,
-          reserveSouthWall: isFirst, // the welcome sign hangs there
-          screens: roomBenches.filter((b) => b.screen),
-        });
+        coverSpotsBehindScreens(roomSpots, roomBenches, rect, settings);
+        if (fillSpots(roomSpots, photosByRoom[index])) break;
       }
-      if (!placed) {
-        if (attempt % 2 === 0 || width + settings.spacing > Math.max(MAX_ROOM_WIDTH, def.width ?? 0)) depth += settings.spacing;
-        else width += settings.spacing;
-      }
+      depth += settings.spacing;
     }
-    rooms.push(makeRoom(index, def, { x0: -width / 2, x1: width / 2, z0: zSouth - depth, z1: zSouth }));
-    for (const f of placed) frames.push({ ...f, roomIndex: index });
+    rooms.push(makeRoom(index, def, rect));
+    for (const spot of roomSpots) spots.push({ ...spot, roomIndex: index });
     benches.push(...roomBenches);
     zSouth = zSouth - depth - WALL_THICKNESS;
   });
+  // Spot numbers in walking order (the floor plan shows them).
+  let number = 0;
+  for (const spot of spots) if (!spot.blocked) spot.number = ++number;
+  const frames = spots.filter((s) => s.photo).map((s) => ({ ...s, ...photoSize(s.photo, settings) }));
 
   if (config.finale.enabled) {
     const s = FINALE_SIZE;
@@ -123,6 +133,7 @@ export function planMuseum(config, photos, videos = []) {
     rooms,
     doors,
     frames,
+    spots,
     benches,
     start: { x: 0, z: first.z1 - 2.6 }, // a few steps in from the south wall
     bounds: {
@@ -209,88 +220,97 @@ export function photoSize(photo, settings) {
 }
 
 /**
- * Hangs the photos along the walls in walking order (clockwise when seen from
- * above, starting on the left/west wall). Returns null if they don't fit, so
- * the caller can grow the room and try again.
+ * The fixed photo spots along a room's walls, in walking order (clockwise
+ * when seen from above, starting on the left/west wall, ending on the back
+ * wall). They depend only on the room's size and doors.
  */
-function placeFrames(rect, photos, settings, opts) {
-  if (!photos.length) return [];
+function wallSpots(rect, settings, opts) {
   const { x0, x1, z0, z1 } = rect;
   const W = x1 - x0;
   const D = z1 - z0;
-
   // Each wall: where it starts, which way it runs, and which way it faces (into the room).
   const walls = [
-    { from: [x0, z1], dir: [0, -1], len: D, normal: [1, 0], door: 0 }, // west, south→north
-    { from: [x0, z0], dir: [1, 0], len: W, normal: [0, 1], door: opts.northDoor ? opts.northDoorWidth : 0 }, // north
-    { from: [x1, z0], dir: [0, 1], len: D, normal: [-1, 0], door: 0 }, // east, north→south
-    { from: [x1, z1], dir: [-1, 0], len: W, normal: [0, -1], door: opts.southDoor ? DOOR_WIDTH : 0, skip: opts.reserveSouthWall }, // south
+    { from: [x0, z1], dir: [0, -1], len: D, normal: [1, 0], gaps: [] }, // west, south→north
+    { from: [x0, z0], dir: [1, 0], len: W, normal: [0, 1], gaps: opts.northDoor ? [[opts.northDoorWidth, DOOR_MARGIN]] : [] }, // north
+    { from: [x1, z0], dir: [0, 1], len: D, normal: [-1, 0], gaps: [] }, // east, north→south
+    { from: [x1, z1], dir: [-1, 0], len: W, normal: [0, -1], gaps: [ // south (the back wall)
+      ...(opts.southDoor ? [[DOOR_WIDTH, DOOR_MARGIN]] : []),
+      ...(opts.welcomeSign ? [[WELCOME_SIGN_WIDTH, SIGN_MARGIN]] : []),
+    ] },
   ];
-  // Wall space kept free: (centred) doors, and video screens on the side walls.
-  for (const wall of walls) {
-    wall.blocked = wall.door ? [[wall.len / 2 - wall.door / 2 - DOOR_MARGIN, wall.len / 2 + wall.door / 2 + DOOR_MARGIN]] : [];
-  }
-  for (const s of opts.screens ?? []) {
-    const t = s.screen.nx > 0 ? z1 - s.z : s.z - z0; // distance along the west / east wall
-    walls[s.screen.nx > 0 ? 0 : 2].blocked.push([t - SCREEN.gap, t + SCREEN.gap]);
-  }
-
-  // Split walls around the blocked parts into usable segments.
-  const segments = [];
-  for (const wall of walls) {
-    if (wall.skip) continue;
+  const frameW = settings.maxWidth + FRAME_BORDER * 2;
+  const spots = [];
+  walls.forEach((wall, wallIndex) => {
+    // Openings and signs are centred on their wall: keep them (and a margin) free.
+    const blocked = wall.gaps.map(([g, margin]) => [wall.len / 2 - g / 2 - margin, wall.len / 2 + g / 2 + margin]);
+    const edges = [0, wall.len, ...wall.gaps.flatMap(([g]) => [wall.len / 2 - g / 2, wall.len / 2 + g / 2])];
     let start = CORNER_MARGIN;
-    for (const [a, b] of wall.blocked.sort((p, q) => p[0] - q[0])) {
-      if (a > start) segments.push({ wall, a: start, b: a, len: a - start });
+    const segments = [];
+    for (const [a, b] of blocked.sort((p, q) => p[0] - q[0])) {
+      if (a > start) segments.push([start, a]);
       start = Math.max(start, b);
     }
-    if (wall.len - CORNER_MARGIN > start) segments.push({ wall, a: start, b: wall.len - CORNER_MARGIN, len: wall.len - CORNER_MARGIN - start });
-  }
+    if (wall.len - CORNER_MARGIN > start) segments.push([start, wall.len - CORNER_MARGIN]);
+    for (const [a, b] of segments) {
+      const len = b - a;
+      if (len < frameW) continue;
+      const k = 1 + Math.floor((len - frameW) / settings.spacing);
+      const step = k > 1 ? Math.min((len - frameW) / (k - 1), Math.max(settings.spacing, len / k)) : 0;
+      for (let j = 0; j < k; j++) {
+        const t = (a + b) / 2 + (j - (k - 1) / 2) * step; // distance along the wall
+        const { from, dir, normal } = wall;
+        spots.push({
+          slot: spots.length,
+          wall: wallIndex,
+          t,
+          // Free wall either side (to a corner, door or sign): the frame's glow stays within it.
+          free: Math.min(...edges.map((e) => Math.abs(e - t))),
+          x: from[0] + dir[0] * t,
+          z: from[1] + dir[1] * t,
+          y: settings.centerHeight,
+          nx: normal[0],
+          nz: normal[1],
+          rotationY: Math.atan2(normal[0], normal[1]),
+          blocked: false,
+          photo: null,
+        });
+      }
+    }
+  });
+  return spots;
+}
 
-  // How many frames fit on each segment.
+/** A video screen covers the spots behind it (on the wall its bench faces). */
+function coverSpotsBehindScreens(spots, benches, rect, settings) {
   const frameW = settings.maxWidth + FRAME_BORDER * 2;
-  for (const s of segments) s.capacity = s.len >= frameW ? 1 + Math.floor((s.len - frameW) / settings.spacing) : 0;
-  const capacity = segments.reduce((sum, s) => sum + s.capacity, 0);
-  if (capacity < photos.length) return null;
-
-  // Share the photos between segments in proportion to their size
-  // (largest-remainder rounding), so they spread around the whole room.
-  const n = photos.length;
-  const shares = segments.map((s) => (s.capacity * n) / capacity);
-  segments.forEach((s, i) => (s.count = Math.floor(shares[i])));
-  let left = n - segments.reduce((sum, s) => sum + s.count, 0);
-  const byRemainder = segments.map((s, i) => i).sort((i, j) => (shares[j] % 1) - (shares[i] % 1));
-  for (const i of byRemainder) {
-    if (left === 0) break;
-    if (segments[i].count < segments[i].capacity) {
-      segments[i].count++;
-      left--;
+  for (const bench of benches) {
+    if (!bench.screen) continue;
+    const west = bench.screen.nx > 0;
+    const ts = west ? rect.z1 - bench.z : bench.z - rect.z0; // distance along the west / east wall
+    for (const spot of spots) {
+      if (spot.wall !== (west ? 0 : 2)) continue;
+      const d = Math.abs(spot.t - ts);
+      if (d < SCREEN.gap + frameW / 2) spot.blocked = true;
+      else spot.free = Math.min(spot.free, d - SCREEN.gap + 0.3);
     }
   }
+}
 
-  // Evenly space the frames on each segment.
-  const placed = [];
-  let next = 0;
-  for (const s of segments) {
-    const k = s.count;
-    if (!k) continue;
-    const step = k > 1 ? Math.min((s.len - frameW) / (k - 1), Math.max(settings.spacing, s.len / k)) : 0;
-    const mid = (s.a + s.b) / 2;
-    for (let j = 0; j < k; j++) {
-      const t = mid + (j - (k - 1) / 2) * step; // distance along the wall
-      const photo = photos[next++];
-      const { from, dir, normal } = s.wall;
-      placed.push({
-        photo,
-        x: from[0] + dir[0] * t,
-        z: from[1] + dir[1] * t,
-        y: settings.centerHeight,
-        nx: normal[0],
-        nz: normal[1],
-        rotationY: Math.atan2(normal[0], normal[1]),
-        ...photoSize(photo, settings),
-      });
-    }
+/**
+ * Puts each photo on its own spot; photos without a (free) spot of their own
+ * take the first free ones. Returns false if there aren't enough spots.
+ */
+function fillSpots(spots, photos) {
+  const homeless = [];
+  for (const photo of photos) {
+    const spot = Number.isInteger(photo.slot) ? spots[photo.slot] : null;
+    if (spot && !spot.blocked && !spot.photo) spot.photo = photo;
+    else homeless.push(photo);
   }
-  return placed;
+  for (const photo of homeless) {
+    const spot = spots.find((s) => !s.blocked && !s.photo);
+    if (!spot) return false;
+    spot.photo = photo;
+  }
+  return true;
 }

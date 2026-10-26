@@ -44,7 +44,14 @@ export function buildScreens(plan) {
     holder.add(wallGlow, bezel, screen, sign);
     group.add(holder);
 
-    const item = { bench, video: bench.video, material, poster: null, url: null };
+    const item = { bench, video: bench.video, material, poster: null, url: null, loading: null };
+    /** Download the film (once); `item.url` is set when it's here. */
+    item.load = () => (item.loading ??= item.video.url?.()
+      .then((url) => (item.url = url))
+      .catch((err) => {
+        item.loading = null; // try again next time
+        console.warn('[video] could not load:', err.message);
+      }));
     Promise.resolve(bench.video.posterUrl).then((url) => (url ? loader.loadAsync(url) : null)).then((tex) => {
       if (!tex) return;
       tex.colorSpace = THREE.SRGBColorSpace;
@@ -58,11 +65,13 @@ export function buildScreens(plan) {
     items.push(item);
   }
 
-  /** Start downloading the videos in the background, so they're ready when someone sits. */
-  function preload() {
-    for (const item of items) {
-      item.video.url?.().then((url) => (item.url = url)).catch((err) => console.warn('[video] could not load:', err.message));
-    }
+  /**
+   * Download the videos of a room — and of the next one — in the background,
+   * so they're ready when someone sits down (but a long film in the last room
+   * isn't downloaded by everyone who only looks at the first).
+   */
+  function preload(roomIndex) {
+    for (const item of items) if (item.bench.roomIndex === roomIndex || item.bench.roomIndex === roomIndex + 1) item.load();
   }
 
   return { group, items, preload };
@@ -110,6 +119,7 @@ export class VideoPlayer {
     };
     if (item.url) start();
     else {
+      item.load();
       // Still downloading: start as soon as it's here.
       const wait = setInterval(() => {
         if (this.item !== item) clearInterval(wait);

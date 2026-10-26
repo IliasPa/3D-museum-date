@@ -4,7 +4,7 @@
  *
  *   access/{email}                     { museums: [ids] }   ← guest lists
  *   museums/{id}                       texts, rooms, message, music info
- *   museums/{id}/photos/{photoId}      details + tiny thumbnail
+ *   museums/{id}/photos/{photoId}      details (room + spot, texts) + tiny thumbnail
  *   museums/{id}/images/{photoId}-md   1024 px JPEG bytes (on the wall)
  *   museums/{id}/images/{photoId}-lg   1600 px JPEG bytes (full screen)
  *   museums/{id}/music/{version}-{n}   the song, in pieces of < 1 MB
@@ -149,6 +149,7 @@ export async function uploadPhoto(museumId, processed, details) {
     width: processed.width,
     height: processed.height,
     color: processed.color,
+    bytes: processed.md.length + processed.lg.length + processed.thumb.length, // for the storage meter
     thumb: fs.Bytes.fromUint8Array(processed.thumb),
     createdAt: fs.serverTimestamp(),
   };
@@ -190,16 +191,6 @@ export async function deletePhoto(museumId, photoId) {
   batch.delete(fs.doc(db, 'museums', museumId, 'images', `${photoId}-md`));
   batch.delete(fs.doc(db, 'museums', museumId, 'images', `${photoId}-lg`));
   await batch.commit();
-}
-
-/** Swap the walking order of two photos. */
-export async function swapOrder(museumId, a, b) {
-  const { db, fs } = await fsdb();
-  const batch = fs.writeBatch(db);
-  batch.update(fs.doc(db, 'museums', museumId, 'photos', a.id), { order: b.order });
-  batch.update(fs.doc(db, 'museums', museumId, 'photos', b.id), { order: a.order });
-  await batch.commit();
-  [a.order, b.order] = [b.order, a.order];
 }
 
 // ── Music ─────────────────────────────────────────────────────────────

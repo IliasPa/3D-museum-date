@@ -1,6 +1,6 @@
 /**
- * Little visual effects for the avatars' actions: emoji/speech bubbles above
- * heads, floating emoji particles (tears, 💤, notes…) and a rainbow arc.
+ * Little visual effects for the avatars' actions: speech bubbles above heads
+ * ("Meow! 🐱"), emoji particles (tears, a blown kiss) and a rainbow.
  * Emoji are drawn with the device's own emoji font, so they look native on
  * iPhone, Android and Windows alike.
  */
@@ -79,23 +79,28 @@ export class Effects {
     });
   }
 
-  /** A rainbow thrown into the air at `pos`, arching across the direction `yaw`. */
+  /**
+   * A rainbow thrown up from two hands at `pos` (their height), arching across
+   * the direction `yaw`: it springs out of the hands, both ends drawing
+   * outward and up to meet at the top, while it grows and rises.
+   */
   rainbow(pos, yaw) {
     const group = new THREE.Group();
     const colours = ['#ff5a5f', '#ff9f43', '#feca57', '#1dd1a1', '#54a0ff', '#a55eea'];
-    colours.forEach((c, i) => {
-      const arc = new THREE.Mesh(
-        new THREE.TorusGeometry(1.0 - i * 0.07, 0.035, 6, 40, Math.PI),
-        new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: 0.9, toneMapped: false, depthWrite: false }),
+    const bands = colours.map((c, i) => {
+      const band = new THREE.Mesh(
+        arcRibbon(1 - (i + 1) * 0.075, 1 - i * 0.075, RAINBOW_SEGMENTS),
+        new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: 0.92, side: THREE.DoubleSide, toneMapped: false, depthWrite: false }),
       );
-      group.add(arc);
+      band.geometry.setDrawRange(0, 0);
+      group.add(band);
+      return band;
     });
     group.position.copy(pos);
     group.rotation.y = yaw;
-    group.scale.setScalar(0.01);
-    group.renderOrder = 4;
+    group.scale.setScalar(0.38); // the ends start at the hands
     this.scene.add(group);
-    this.items.push({ sprite: group, kind: 'rainbow', age: 0, life: 3.2 });
+    this.items.push({ sprite: group, bands, kind: 'rainbow', age: 0, life: 3.4 });
   }
 
   update(dt) {
@@ -124,12 +129,38 @@ export class Effects {
         it.sprite.position.addScaledVector(it.v, dt);
         it.sprite.material.opacity = Math.min(1, (1 - t) * 3, it.age * 8);
       } else if (it.kind === 'rainbow') {
-        const grow = 1 - (1 - Math.min(1, it.age / 0.6)) ** 3;
-        it.sprite.scale.setScalar(0.01 + grow);
-        it.sprite.position.y += dt * 0.15;
+        const easeOut = (x) => 1 - (1 - Math.min(1, x)) ** 3;
+        const drawn = Math.ceil(easeOut(it.age / 0.55) * (RAINBOW_SEGMENTS / 2));
         const fade = Math.min(1, (1 - t) * 3);
-        it.sprite.traverse((o) => o.material && (o.material.opacity = 0.9 * fade));
+        for (const band of it.bands) {
+          band.geometry.setDrawRange(0, drawn * 12);
+          band.material.opacity = 0.92 * fade;
+        }
+        it.sprite.scale.setScalar(0.38 + 0.95 * easeOut(it.age / 1.1));
+        it.sprite.position.y += dt * 0.12;
       }
     }
   }
+}
+
+const RAINBOW_SEGMENTS = 48;
+
+/**
+ * A flat half-ring (one colour of the rainbow) whose triangles are ordered
+ * from both ends towards the top — so drawing more of them makes the arc grow
+ * out of both hands at once.
+ */
+function arcRibbon(inner, outer, segments) {
+  const positions = [];
+  for (let k = 0; k <= segments; k++) {
+    const a = (Math.PI * k) / segments;
+    positions.push(Math.cos(a) * inner, Math.sin(a) * inner, 0, Math.cos(a) * outer, Math.sin(a) * outer, 0);
+  }
+  const quad = (k) => [2 * k, 2 * k + 1, 2 * k + 2, 2 * k + 1, 2 * k + 3, 2 * k + 2];
+  const index = [];
+  for (let k = 0; k < segments / 2; k++) index.push(...quad(k), ...quad(segments - 1 - k));
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geo.setIndex(index);
+  return geo;
 }

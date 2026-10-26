@@ -74,10 +74,12 @@ export function buildFrames(plan, config, renderer, onProgress = () => {}) {
     // Mat board, slightly recessed behind the moulding.
     add('mat', new THREE.PlaneGeometry(outerW - 2 * BORDER, outerH - 2 * BORDER).translate(0, 0, DEPTH * 0.45));
 
-    // Faked spotlight: warm glow on the wall around the frame (brightest at the top)…
-    add('wallGlow', new THREE.PlaneGeometry(outerW * 2.1, outerH * 2.3).translate(0, outerH * 0.18, 0.004));
+    // Faked spotlight: warm glow on the wall around the frame (brightest at the top),
+    // never wider than the wall it's on (it stops at corners, doors and signs)…
+    const glowW = Math.min(outerW * 2.1, (f.free ?? Infinity) * 2 - 0.04);
+    add('wallGlow', new THREE.PlaneGeometry(glowW, outerH * 2.3).translate(0, outerH * 0.18, 0.004));
     // …a soft pool of light on the floor below…
-    add('floorGlow', new THREE.PlaneGeometry(outerW * 1.7, 1.8).rotateX(-Math.PI / 2).translate(0, -f.y + 0.004, 0.75));
+    add('floorGlow', new THREE.PlaneGeometry(Math.min(outerW * 1.7, glowW), 1.5).rotateX(-Math.PI / 2).translate(0, -f.y + 0.004, 0.9));
     // …a lamp on the ceiling rail…
     const lampPos = new THREE.Vector3(0, WALL_HEIGHT - f.y - 0.2, LAMP_OUT);
     const aim = new THREE.Vector3(0, 0.15, 0).sub(lampPos).normalize();
@@ -89,10 +91,10 @@ export function buildFrames(plan, config, renderer, onProgress = () => {}) {
     // …and a faint beam from the lamp to the photo.
     const target = new THREE.Vector3(0, 0.1, 0.02);
     const length = lampPos.distanceTo(target);
-    add('beam', new THREE.ConeGeometry(Math.max(outerW, outerH) * 0.55, length, 18, 1, true)
+    add('beam', inFrontOfWall(new THREE.ConeGeometry(Math.max(outerW, outerH) * 0.55, length, 18, 1, true)
       .translate(0, -length / 2, 0)
       .applyQuaternion(lampRot)
-      .translate(lampPos.x, lampPos.y, lampPos.z));
+      .translate(lampPos.x, lampPos.y, lampPos.z)));
 
     // The photo itself: unlit (so colours stay true) and not tone-mapped.
     const photoMat = new THREE.MeshBasicMaterial({ color: f.photo.color || '#cccccc', toneMapped: false });
@@ -176,7 +178,7 @@ export function buildFrames(plan, config, renderer, onProgress = () => {}) {
         highlight.visible = true;
         highlight.position.set(0, active.outerH * 0.1, 0.006).applyMatrix4(active.place);
         highlight.rotation.y = active.rotationY;
-        highlight.scale.set(active.outerW * 2.4, active.outerH * 2.2, 1);
+        highlight.scale.set(Math.min(active.outerW * 2.4, (active.free ?? Infinity) * 2), active.outerH * 2.2, 1);
       }
       const target = active ? 0.55 : 0;
       highlightMat.opacity += (target - highlightMat.opacity) * Math.min(1, dt * 5);
@@ -184,4 +186,14 @@ export function buildFrames(plan, config, renderer, onProgress = () => {}) {
       return highlighted;
     },
   };
+}
+
+/**
+ * The beam's wide end would poke through the wall behind the photo and show
+ * up in the next room: flatten everything behind the wall onto its surface.
+ */
+function inFrontOfWall(geo) {
+  const pos = geo.attributes.position;
+  for (let i = 0; i < pos.count; i++) if (pos.getZ(i) < 0.012) pos.setZ(i, 0.012);
+  return geo;
 }
