@@ -23,6 +23,8 @@ import { Hud } from './ui/hud.js';
 import { Placard } from './ui/placard.js';
 import { Lightbox } from './ui/lightbox.js';
 import { Letter } from './ui/letter.js';
+import { Film } from './ui/film.js';
+import { Wardrobe } from './ui/wardrobe.js';
 import { loadLook, saveLook, encodeLook } from './player/looks.js';
 import { watchUser, signInWithGoogle, signOutUser, signInErrorMessage, isAdminEmail, isInAppBrowser, isConfigured } from './backend/firebase.js';
 
@@ -38,7 +40,10 @@ async function boot() {
   const placard = new Placard($('#placard'), isTouch);
   const lightbox = new Lightbox($('#lightbox'));
   const letter = new Letter($('#letter'), CONFIG.finale);
+  const film = new Film($('#film'));
+  const wardrobe = new Wardrobe($('#wardrobe'));
   let look = loadLook();
+  let presence = null; // live avatars (after "Enter")
 
   // 1. A light preview: the museum's rooms with blank frames (no photos downloaded).
   let game;
@@ -172,8 +177,35 @@ async function boot() {
   game.onVideoChange = (playing, { muted, loading } = {}) => {
     if (playing) music.pauseForVideo();
     else music.resumeAfterVideo();
+    if (!playing) film.close();
     if (playing && muted) hud.showHint('Tap the screen for sound 🔊', 5000);
     else if (playing && loading) hud.showHint('The film is on its way… 🎬', 4000);
+    else if (playing) hud.showHint(isTouch ? 'Tap the film for full screen 🎬' : 'Press Space for full screen 🎬', 4000);
+  };
+
+  // A film full screen (Space, or a tap on it, while sitting at it).
+  game.onVideoFullscreen = () => {
+    game.video.unmute(); // this tap / key counts as permission for sound
+    if (!game.video.el?.src) return; // still on its way
+    placard.hide();
+    game.setPaused(true);
+    film.open(game.video.el, game.video.item.video.title);
+  };
+  film.onClose = () => game.setPaused(false);
+
+  // The wardrobe (👕): change your look in the middle of a visit.
+  hud.onWardrobe = () => {
+    placard.hide();
+    game.setPaused(true);
+    wardrobe.open(look);
+  };
+  wardrobe.onClose = (next) => {
+    game.setPaused(false);
+    if (encodeLook(next) === encodeLook(look)) return;
+    look = next;
+    saveLook(look);
+    game.setLook(look);
+    presence?.setLook(encodeLook(look));
   };
 
   // 4. "Enter": start the music (must happen inside the tap for iPhone), play, meet the others.
@@ -186,7 +218,6 @@ async function boot() {
       ? 'Left thumb to walk · swipe to look around · 😊 for actions'
       : 'Arrow keys to walk · Space opens a photo · A–Z for actions (😊 lists them)');
 
-    let presence = null;
     hud.onEmote = () => {
       game.emote();
       presence?.emote();

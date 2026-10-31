@@ -42,15 +42,17 @@ You can make as many museums as you like, one per couple, each with its own link
 ## 3. Playing together
 
 - Both people open their museum's link on their phones or computers and sign in with Google.
-- Before entering, each dresses up their avatar (a little character with bendable arms and legs, hands with fingers and a face that shows feelings):
-  - **Body:** guy or girl; slim, regular or cuddly; 8 skin tones.
-  - **Face:** eyes (round, lashes, sparkly, sleepy or happy ^^) in 6 colours; eyebrows; mouth (smile, grin, cat :3, small); rosy, heart-shaped or no blush; freckles, stubble, moustache or beard.
-  - **Hair:** 14 styles (incl. spiky, mohawk, afro, braids and bald) in 12 colours.
-  - **Top:** sweater, T-shirt, hoodie, shirt, open jacket or dress; plain, heart, star, stripes or dots; 12 colours.
-  - **Bottom:** trousers, shorts or skirt; sneakers or boots; their colours.
-  - **Hats:** beanie, cap, beret, sun hat, bow, bunny or cat ears, flowers or a crown, in 8 colours; round, square, heart, star glasses or shades.
-  - **Extras:** scarf, necklace, bow tie or tie; backpack, angel wings or a cape; earrings or headphones; a heart balloon to hold.
-  - 🎲 picks a random outfit.
+- Before entering, each dresses up their avatar in the **avatar studio** (a little character with bendable arms and legs, hands with fingers and a face that shows feelings). Drag the big preview to turn it; it zooms in on whatever you're changing, and every option is shown as a little picture of *your* avatar wearing it. Every colour has a few swatches plus **+** for any colour at all.
+  - **Body:** guy or girl; regular, slim, cuddly or strong; height and head size sliders; 8 skin tones + 4 fantasy ones.
+  - **Face:** 9 eye shapes (round, lashes, sparkly, sleepy, happy ^^, dots, big, hearts, cat) in any colour; 6 eyebrows; 8 mouths (incl. tongue, fangs, smirk); lipstick; rosy, heart or star blush; 4 noses; round, elf or big ears; stubble, moustache, beard, goatee or a curly moustache; freckles, a beauty spot, a plaster, a painted heart or glitter.
+  - **Hair:** 22 styles (incl. quiff, curtains, pixie, wavy, space buns, side pony, top knot, locs) in any colour, with optional coloured highlights.
+  - **Top:** 13 tops (sweater, T-shirt, hoodie, shirt, jacket, dress, tank top, turtleneck, dungarees, blazer, puffer, jersey, cardigan); 9 prints (heart, star, stripes, dots, checks, flowers, zigzag, rainbow); the top's and the print's colours.
+  - **Bottom:** trousers, shorts, skirt, jeans, long skirt or cargo; sneakers, boots, high-tops, sandals, heels or bunny slippers; their colours.
+  - **Hats:** 21 (incl. top hat, cowboy, party hat, halo, tiara, witch, Santa, bucket hat, horns, bear ears, chef) in any colour; 9 kinds of glasses (incl. aviators, cat-eye and a monocle).
+  - **Extras:** 9 things for the neck (scarf, necklace, pearls, locket, bow tie, tie, bandana, flower lei, medal); studs, hoops, pearls, headphones or earmuffs; a backpack, angel / fairy / bat wings, a cape or a guitar; a cat, fox, bunny or devil tail; something to carry (heart balloon, rose, teddy, ice cream, coffee, bouquet, book, lollipop); one colour for scarves, bags and capes.
+  - **Pet:** a cat, puppy, bunny, duckling or bear cub, in any colour, that trots after you (the others see it too).
+  - 🎲 picks a random outfit, ↶ undoes.
+- Change your mind during the visit? The **👕** button opens the same studio as a wardrobe; the other person sees the new look right away.
 - Inside, you see each other with name tags. The ♥ button sends hearts the other person sees, and hearts float up whenever you stand close together. **Walk side by side and you hold hands.**
 - The chip under the room name shows who's with you. You'll see a short note when someone arrives or leaves.
 
@@ -59,6 +61,7 @@ You can make as many museums as you like, one per couple, each with its own link
 | Walk | Arrow keys (hold Shift to run) | Left thumb anywhere on the left side, then slide (all the way to run) |
 | Look around | Drag with the mouse; the wheel zooms | Swipe on the right side |
 | Open a photo | **Space**, or click it / the caption card | Tap the photo or the caption card |
+| Watch a film full screen (while sitting at it) | **Space** (Space or Esc to go back) | Tap the film |
 | Actions | Letters **A–Z** (😊 lists them) | The **😊** button |
 | Photo viewer | ← → to browse, Esc to close | Swipe to browse, × or tap outside to close |
 
@@ -76,7 +79,7 @@ You can make as many museums as you like, one per couple, each with its own link
 
 - **Hug** and **Kiss** need you to be close and **facing each other**: the other person hugs back or blushes. From further away, H makes a heart with your hands and K blows a kiss.
 - **Tickle** works when you're close: the other person falls down laughing. From further away you tickle the air.
-- **Sit (S)** works next to a bench. If a video hangs in front of it, the camera glides to a cinema view and the video plays with sound (the music pauses). Walk, or press S again, to stand up. Two people can share a bench, and they hold hands.
+- **Sit (S)** works next to a bench. If a video hangs in front of it, the camera glides to a cinema view and the video plays with sound (the music pauses). Press **Space** (or tap the film) to watch it full screen; Space, Esc or × goes back to the bench and the film keeps playing. Walk, or press S again, to stand up. Two people can share a bench, and they hold hands.
 - Dance, Nap and Sit last until you walk. Zombie walk lasts until you press Z again.
 
 **Sign-in tip:** Google blocks sign-in inside Instagram/Facebook/TikTok's own browsers. If someone opens the link from a DM, they should tap ⋯ → *Open in Safari/Chrome*. The page explains this when it detects such a browser.
@@ -138,7 +141,7 @@ The built-in avatar is made of simple shapes, and you can switch everyone to a r
 6. Save it as `public/models/avatar.glb` (create the `models` folder).
 7. In `src/config.js` set `avatar.type: 'glb'`. If the model walks backwards, set `rotationY: Math.PI`.
 
-(The look picker and the A–Z body animations apply to the built-in avatar. A .glb character keeps its own animations and shows the action bubbles.)
+(The avatar studio and the A–Z body animations apply to the built-in avatar. A .glb character keeps its own animations and shows the action bubbles.)
 
 ## 8. Project map
 
@@ -155,8 +158,11 @@ src/museumConfig.js       shared settings + one museum's own texts/rooms
 src/main.js               the visitor flow: preview → sign in → load museum → look → enter
 src/game.js               renderer, main loop, your avatar, the others' avatars, photos nearby
 src/world/                rooms, frames, video screens, the hidden room, hearts, effects, dust…
-src/player/               avatars (+ looks, + other people's), actions A–Z (emotes.js), walking, camera
-src/ui/                   start screen (+ look picker), HUD, caption card, photo viewer, letter
+src/player/               avatars: avatar.js (body + animation), avatarParts.js (face, hair, clothes,
+                          hats, extras), pet.js, looks.js (all the options + the look code), the
+                          others' avatars; actions A–Z (emotes.js), walking, camera
+src/ui/                   start screen, avatar studio (+ its preview and picture tiles), wardrobe,
+                          HUD, caption card, photo viewer, film viewer, letter
 firestore.rules           who may read/write the museums (runs on Google's servers)
 database.rules.json       who may read/write live positions
 public/samples/           the 10 sample photos for "Add 10 sample photos"

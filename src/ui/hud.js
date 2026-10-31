@@ -1,6 +1,6 @@
 import { EMOTES, MENU } from '../player/emotes.js';
 
-/** Room name (top left), ♥ / actions / mute buttons (top right), who's here, room titles and hints. */
+/** Room name (top left), wardrobe / actions / ♥ / mute buttons (top right), who's here, room titles and hints. */
 export class Hud {
   constructor(el, music) {
     this.el = el;
@@ -14,7 +14,14 @@ export class Hud {
     this.names = new Map(); // uid → name of everyone else here
     this.onEmote = () => {};
     this.onAction = () => {}; // (letter)
+    this.onWardrobe = () => {}; // the 👕 button
     this.#buildActions();
+    const wardrobe = el.querySelector('.hud-wardrobe');
+    wardrobe.addEventListener('click', () => {
+      wardrobe.blur(); // so Space/Enter go back to the game afterwards
+      this.closeActions();
+      this.onWardrobe();
+    });
     this.heart.addEventListener('click', () => {
       this.onEmote();
       this.heart.blur();
@@ -62,6 +69,7 @@ export class Hud {
       panel.hidden = !open;
       button.setAttribute('aria-expanded', String(open));
     };
+    this.closeActions = () => toggle(false);
     button.addEventListener('click', () => {
       toggle(panel.hidden);
       button.blur();

@@ -85,7 +85,7 @@ export class RemoteAvatars {
     const look = decodeLook(state.look) ?? defaultLook();
     const avatar = new ProceduralAvatar(look);
     const tag = nameTag(state.name);
-    tag.position.y = 1.62;
+    tag.position.y = avatar.topY ?? 1.62; // just above their head (or hat)
     avatar.root.add(tag);
     this.scene.add(avatar.root);
     const p = {

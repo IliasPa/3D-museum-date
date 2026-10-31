@@ -78,6 +78,11 @@ export async function joinPresence({ museumId, user, name, look, publish, getSta
   }
 
   return {
+    /** A new look (from the wardrobe): everyone sees it right away. */
+    setLook(code) {
+      look = code;
+      last = null;
+    },
     /** Tell everyone you pressed ♥. */
     emote() {
       emote = Date.now();

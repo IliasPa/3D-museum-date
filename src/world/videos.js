@@ -2,6 +2,7 @@
  * Video screens. A video hangs on the wall in front of a bench (layout.js
  * decides where) and plays only while you sit on that bench — with sound,
  * because sitting down is a tap/keypress (phones only allow sound then).
+ * While it plays, Space or a tap on the screen shows it full screen (ui/film.js).
  */
 import * as THREE from 'three';
 import { radialGlowTexture, textTexture } from './textures.js';
@@ -44,7 +45,7 @@ export function buildScreens(plan) {
     holder.add(wallGlow, bezel, screen, sign);
     group.add(holder);
 
-    const item = { bench, video: bench.video, material, poster: null, url: null, loading: null };
+    const item = { bench, video: bench.video, mesh: screen, material, poster: null, url: null, loading: null };
     /** Download the film (once); `item.url` is set when it's here. */
     item.load = () => (item.loading ??= item.video.url?.()
       .then((url) => (item.url = url))
@@ -145,6 +146,7 @@ export class VideoPlayer {
     const item = this.item;
     if (!item) return;
     this.el.pause();
+    this.el.remove(); // in case it was shown full screen
     this.el.removeAttribute('src');
     this.el.load();
     this.texture?.dispose();

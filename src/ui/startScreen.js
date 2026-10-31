@@ -1,10 +1,9 @@
 /**
  * The start screen. It walks through a few steps, one at a time:
- *   signin → busy → (denied | choose) → ready (pick your look, then "Enter")
+ *   signin → busy → (denied | choose) → ready (dress up in the avatar studio, then "Enter")
  * The "Enter" button also unlocks audio on iPhone.
  */
-import { LOOK_OPTIONS, LOOK_LABELS, LOOK_GROUPS, randomLook } from '../player/looks.js';
-import { AvatarPreview } from './avatarPreview.js';
+import { AvatarStudio } from './avatarStudio.js';
 
 export class StartScreen {
   constructor(el, config, isTouch) {
@@ -111,102 +110,22 @@ export class StartScreen {
   ready({ look, note = '', onLookChange, onEnter }) {
     this.show('ready');
     this.el.querySelector('.start-note-ready').textContent = note;
-    this.#buildLookPicker(look, onLookChange);
+    this.#buildStudio(look, onLookChange);
     const button = this.el.querySelector('[data-action="enter"]');
     button.textContent = this.config.enterLabel;
     button.disabled = false;
     button.onclick = () => {
       button.disabled = true;
       onEnter();
-      this.preview?.dispose();
+      this.studio?.dispose();
       this.el.classList.add('leaving');
       setTimeout(() => (this.el.hidden = true), 1000);
     };
     button.focus({ preventScroll: true });
   }
 
-  #buildLookPicker(look, onLookChange) {
-    const current = { ...look };
-    const container = this.el.querySelector('.look-options');
-    container.replaceChildren();
-    const tabs = document.createElement('div');
-    tabs.className = 'look-tabs';
-    const rows = document.createElement('div');
-    rows.className = 'look-rows';
-    container.append(tabs, rows);
-
-    const changed = (emote) => {
-      this.preview?.setLook(current, emote);
-      onLookChange({ ...current });
-    };
-    const showGroup = (group) => {
-      for (const t of tabs.querySelectorAll('[data-group]')) t.setAttribute('aria-selected', String(t.dataset.group === group.name));
-      rows.replaceChildren(...group.fields.map(([field, label]) => this.#lookRow(field, label, current, changed)));
-    };
-    for (const group of LOOK_GROUPS) {
-      const b = document.createElement('button');
-      b.type = 'button';
-      b.className = 'look-tab';
-      b.dataset.group = group.name;
-      b.textContent = group.name;
-      b.onclick = () => showGroup(group);
-      tabs.append(b);
-    }
-    const dice = document.createElement('button');
-    dice.type = 'button';
-    dice.className = 'look-tab look-random';
-    dice.textContent = '🎲';
-    dice.title = 'Surprise me';
-    dice.setAttribute('aria-label', 'Random look');
-    dice.onclick = () => {
-      Object.assign(current, randomLook());
-      showGroup(LOOK_GROUPS.find((g) => g.name === tabs.querySelector('[aria-selected="true"]').dataset.group));
-      changed('J');
-    };
-    tabs.append(dice);
-    showGroup(LOOK_GROUPS[0]);
-
-    // Little turning avatar next to the options.
-    if (!this.preview) {
-      try {
-        this.preview = new AvatarPreview(this.el.querySelector('.look-preview'));
-        this.preview.start();
-      } catch {
-        this.el.querySelector('.look-preview').hidden = true; // no WebGL to spare: options still work
-      }
-    }
-    this.preview?.setLook(current, 'W');
-  }
-
-  /** One row of the picker: colour swatches, or named options. */
-  #lookRow(field, label, current, changed) {
-    const row = document.createElement('div');
-    row.className = 'look-row';
-    const name = document.createElement('span');
-    name.textContent = label;
-    const options = document.createElement('div');
-    options.className = 'look-swatches';
-    const names = LOOK_LABELS[field];
-    for (const value of LOOK_OPTIONS[field]) {
-      const b = document.createElement('button');
-      b.type = 'button';
-      if (names) {
-        b.className = 'look-style';
-        b.textContent = names[value];
-      } else {
-        b.className = 'look-swatch';
-        b.style.setProperty('--swatch', value);
-      }
-      b.setAttribute('aria-label', `${label}: ${names ? names[value] : value}`);
-      b.setAttribute('aria-pressed', String(current[field] === value));
-      b.onclick = () => {
-        current[field] = value;
-        for (const other of options.children) other.setAttribute('aria-pressed', String(other === b));
-        changed('V');
-      };
-      options.append(b);
-    }
-    row.append(name, options);
-    return row;
+  #buildStudio(look, onLookChange) {
+    this.studio?.dispose();
+    this.studio = new AvatarStudio(this.el.querySelector('.look'), { look, onChange: onLookChange });
   }
 }

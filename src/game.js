@@ -2,7 +2,8 @@
  * The game: owns the renderer, scene, avatars, camera and the main loop.
  * It knows nothing about HTML or the database — it reports what happens
  * through callbacks (onRoomChange, onFocusChange, onFinaleNear, onOpenPhoto,
- * onHint, onVideoChange) and main.js connects those to the screen and Firebase.
+ * onHint, onVideoChange, onVideoFullscreen) and main.js connects those to the
+ * screen and Firebase.
  *
  *   const game = new Game(canvas, joystick, CONFIG);
  *   await game.setMuseum(config, photos, look, onProgress, videos);  // build (or rebuild)
@@ -44,6 +45,7 @@ export class Game {
     this.onOpenPhoto = () => {};
     this.onHint = () => {}; // (text) — short messages like "Walk up to a bench"
     this.onVideoChange = () => {}; // (playing, { muted }) — e.g. pause the music
+    this.onVideoFullscreen = () => {}; // Space or a tap on the screen while a film plays
 
     // ── Renderer ──
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
@@ -60,7 +62,8 @@ export class Game {
     this.rig = new CameraRig(this.camera, config.camera);
     this.input = new Input(canvas, joystickEl, config);
     this.input.onTap = (x, y) => this.#handleTap(x, y);
-    this.input.onInteract = () => this.focus && this.onOpenPhoto(this.focus);
+    // Space / Enter: the film full screen while one plays, otherwise the photo you're at.
+    this.input.onInteract = () => (this.video.playing ? this.onVideoFullscreen() : this.focus && this.onOpenPhoto(this.focus));
     this.input.onAction = (key) => this.performAction(key);
     this.remotes = new RemoteAvatars(this.scene);
     this.hearts = new HeartBursts(this.scene);
@@ -479,12 +482,13 @@ export class Game {
     }
   }
 
-  /** Tap / click: open the photo under the pointer (if no wall is in the way). */
+  /** Tap / click: the playing film full screen, or open the photo under the pointer (if no wall is in the way). */
   #handleTap(clientX, clientY) {
-    if (this.video.mutedFallback) return this.video.unmute(); // first tap after a silent video start: sound on
     const rect = this.canvas.getBoundingClientRect();
     const ndc = new THREE.Vector2(((clientX - rect.left) / rect.width) * 2 - 1, -((clientY - rect.top) / rect.height) * 2 + 1);
     this.raycaster.setFromCamera(ndc, this.camera);
+    if (this.video.playing && this.raycaster.intersectObject(this.video.item.mesh, false).length) return this.onVideoFullscreen();
+    if (this.video.mutedFallback) return this.video.unmute(); // first tap after a silent video start: sound on
     const hit = this.raycaster.intersectObjects(this.frames.items.map((i) => i.mesh), false)[0];
     if (!hit || hit.distance > 14) return;
     const wall = raycastBoxes(this.raycaster.ray.origin, this.raycaster.ray.direction, hit.distance, this.colliders);
