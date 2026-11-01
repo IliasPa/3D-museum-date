@@ -52,6 +52,7 @@ export function buildFrames(plan, config, renderer, onProgress = () => {}) {
 
   for (const index of order) {
     const f = plan.frames[index];
+    if (f.photo.isMirror) continue; // the mirror has its own frame (mirror.js)
     const { width: w, height: h } = f;
     const outerW = w + 2 * (MAT + BORDER);
     const outerH = h + 2 * (MAT + BORDER);

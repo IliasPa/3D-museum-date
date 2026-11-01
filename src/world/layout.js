@@ -36,6 +36,16 @@ const FRAME_BORDER = 0.1; // frame moulding width on each side of the photo
 const BENCH_OFFSET = 2.3; // benches stand this far either side of the centre aisle
 const SCREEN = { maxWidth: 2.2, maxHeight: 1.3, gap: 1.5 }; // video screens (gap = wall kept free either side of centre)
 export const WELCOME_SIGN_WIDTH = 5.6; // on the first room's back wall (museum.js)
+export const MIRROR_ID = '__mirror'; // the mirror takes a photo spot (config.mirror)
+const MIRROR_SIZE = { width: 1000, height: 1400 }; // its shape (like a portrait photo)
+
+/** The mirror as a wall item that takes a spot like a photo, or null if it's switched off. */
+export function mirrorItem(config) {
+  const m = config.mirror;
+  if (!m?.enabled) return null;
+  const rooms = config.rooms.length || 1;
+  return { id: MIRROR_ID, isMirror: true, room: m.room ?? rooms, slot: m.slot ?? undefined, title: '', date: '', caption: '', color: '#141218', ...MIRROR_SIZE };
+}
 
 /**
  * Every room has fixed spots for photos along all four walls — they only
@@ -43,13 +53,15 @@ export const WELCOME_SIGN_WIDTH = 5.6; // on the first room's back wall (museum.
  * index into its room's spots); photos without one fill the free spots in
  * walking order. A video screen covers the spots behind it.
  *
- * @param photos [{ room, slot?, width, height, … }] in walking order
- * @param videos [{ room, width, height, … }] — each hangs on the wall in front of a bench
+ * @param photos [{ room, slot?, width, height, … }] in walking order (the mirror is added by itself)
+ * @param videos [{ room, bench?, width, height, … }] — each hangs on the wall in front of a bench
  * @returns { rooms, doors, frames (filled spots), spots (all of them), benches, start, bounds }
  */
 export function planMuseum(config, photos, videos = []) {
   const defs = config.rooms.length ? config.rooms : [{ title: 'Gallery', wall: '#eee6dc', trim: '#6b4a35' }];
   const settings = config.frames;
+  const mirror = mirrorItem(config);
+  if (mirror) photos = [...photos, mirror];
 
   // Group the photos and videos by room, keeping their walking order.
   const photosByRoom = defs.map(() => []);
@@ -83,7 +95,7 @@ export function planMuseum(config, photos, videos = []) {
       roomSpots = wallSpots(rect, settings, doors);
       const roomVideos = videosByRoom[index];
       if (roomVideos.length <= roomBenches.length) {
-        roomVideos.forEach((video, i) => attachScreen(roomBenches[i], video, rect));
+        placeVideos(roomBenches, roomVideos, rect);
         coverSpotsBehindScreens(roomSpots, roomBenches, rect, settings);
         if (fillSpots(roomSpots, photosByRoom[index])) break;
       }
@@ -159,10 +171,24 @@ function benchesFor(rect, roomIndex) {
     const z = rect.z0 + (depth * (k + 0.5)) / pairs;
     for (const facing of [-1, 1]) {
       const x = cx + facing * BENCH_OFFSET;
-      list.push({ x, z, roomIndex, facing, seats: [{ x, z: z - 0.55 }, { x, z: z + 0.55 }], video: null, screen: null });
+      list.push({ x, z, roomIndex, index: list.length, facing, seats: [{ x, z: z - 0.55 }, { x, z: z + 0.55 }], video: null, screen: null });
     }
   }
   return list;
+}
+
+/**
+ * Each video goes to its own bench (`bench`: an index into the room's
+ * benches); videos without a (free) bench of their own take the first free one.
+ */
+function placeVideos(benches, videos, rect) {
+  const homeless = [];
+  for (const video of videos) {
+    const bench = Number.isInteger(video.bench) ? benches[video.bench] : null;
+    if (bench && !bench.video) attachScreen(bench, video, rect);
+    else homeless.push(video);
+  }
+  for (const video of homeless) attachScreen(benches.find((b) => !b.video), video, rect);
 }
 
 /** Put a video's screen on the wall in front of a bench. */

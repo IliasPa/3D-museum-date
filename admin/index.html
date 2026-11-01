@@ -52,33 +52,13 @@
         </div>
 
         <nav class="tabs" role="tablist">
-          <button type="button" role="tab" data-tab="photos" aria-selected="true">Photos</button>
-          <button type="button" role="tab" data-tab="videos">Videos</button>
           <button type="button" role="tab" data-tab="guests">Guests</button>
           <button type="button" role="tab" data-tab="music">Music</button>
-          <button type="button" role="tab" data-tab="preview">Preview</button>
+          <button type="button" role="tab" data-tab="proposal">Proposal</button>
+          <button type="button" role="tab" data-tab="map">Memory map</button>
+          <button type="button" role="tab" data-tab="hunt">Key hunt</button>
+          <button type="button" role="tab" data-tab="preview" aria-selected="true">Preview</button>
         </nav>
-
-        <!-- Photos -->
-        <div class="tab" data-panel="photos">
-          <div class="upload">
-            <label class="dropzone">
-              <input class="file-input" type="file" accept="image/*,.heic,.heif" multiple />
-              <strong>Drop photos here</strong> or click to choose
-              <small>JPG, PNG or iPhone HEIC · any size · resized and cleaned automatically · they fill the free spots, room by room</small>
-            </label>
-            <div class="upload-options">
-              <button class="btn btn-ghost add-samples" type="button">Add 10 sample photos</button>
-              <div class="bin" title="Drag a photo here to delete it" aria-label="Drag a photo here to delete it">
-                <span class="bin-icon" aria-hidden="true">🗑</span>
-                <span class="bin-text">Drag a photo here to delete it</span>
-              </div>
-            </div>
-            <p class="upload-status" aria-live="polite"></p>
-          </div>
-          <p class="help photos-help">Drag a photo by its picture to change the order or move it to another room. You can also drop new photos straight onto a room.</p>
-          <div class="photo-rooms"></div>
-        </div>
 
         <!-- Guests -->
         <div class="tab" data-panel="guests" hidden>
@@ -88,34 +68,17 @@
             <input name="email" type="email" placeholder="name@gmail.com" required autocomplete="off" />
             <button class="btn" type="submit">Add guest</button>
           </form>
-          <ul class="guest-list"></ul>
+          <div class="guest-list"></div>
           <p class="empty guests-empty">No guests yet — nobody but you can enter.</p>
+          <p class="help guest-help"><strong>Name</strong> (optional) is shown on the clocks in the first room and in the proposal.
+            <strong>Guided tour</strong> walks them through the museum by itself, stopping at every photo (they can take over any time).
+            <strong>Reduced motion</strong> calms the camera and the floating things down. Phones too old or slow for 3D
+            automatically get a simple gallery of the same photos instead.</p>
           <div class="share">
             <span>This museum's link:</span>
             <code class="share-url"></code>
             <button class="btn btn-ghost copy-link" type="button">Copy</button>
           </div>
-        </div>
-
-        <!-- Videos -->
-        <div class="tab" data-panel="videos" hidden>
-          <p class="help">A video hangs on the wall in front of a bench and plays — with sound — when someone sits on that bench
-            (press <strong>S</strong>, or 😊 → Sit). Each room has benches for two videos; rooms grow longer if you add more.</p>
-          <div class="upload">
-            <label class="dropzone video-drop">
-              <input class="video-input" type="file" accept="video/*" />
-              <strong>Choose a video</strong>
-              <small>Any phone video, any length · converted in your browser to a small MP4 that plays everywhere · up to 50 MB each (a long video gets a lower quality to fit)</small>
-            </label>
-            <div class="upload-options">
-              <label>It goes to
-                <select class="video-room"></select>
-              </label>
-            </div>
-            <p class="upload-status video-status" aria-live="polite"></p>
-          </div>
-          <p class="empty videos-empty">No videos yet.</p>
-          <div class="photo-grid video-grid"></div>
         </div>
 
         <!-- Music -->
@@ -131,14 +94,101 @@
           <p class="upload-status music-status" aria-live="polite"></p>
         </div>
 
+        <!-- Proposal -->
+        <div class="tab" data-panel="proposal" hidden>
+          <p class="help">One of the guests kneels with a ring 💍. When proposal mode is on, they get a 💍 button in the museum;
+            they press it standing next to the other person, go down on one knee with an open ring box, and the other person
+            sees the question with a <strong>YES</strong> button that grows… and a <strong>No</strong> button that swims away
+            whenever anyone tries to press it.</p>
+          <form class="panel text-panel proposal-form">
+            <label class="check"><input type="checkbox" name="enabled" /> Proposal mode on</label>
+            <label>Who kneels with the ring
+              <select name="proposer"></select>
+            </label>
+            <label>The question <input name="question" maxlength="80" /></label>
+            <div class="form-row">
+              <label>The YES button <input name="yes" maxlength="24" /></label>
+              <label>The No button (it runs away) <input name="no" maxlength="24" /></label>
+            </div>
+            <label>After the yes <input name="after" maxlength="80" /></label>
+            <div class="form-row">
+              <label>The ring
+                <select name="metal"><option value="gold">Gold</option><option value="rose">Rose gold</option><option value="silver">Silver / platinum</option></select>
+              </label>
+              <label class="rp-colour">Stone <input type="color" name="gem" /></label>
+            </div>
+            <p class="proposal-status"></p>
+          </form>
+        </div>
+
+        <!-- Memory map -->
+        <div class="tab" data-panel="map" hidden>
+          <p class="help">A map table stands in the middle of the hidden last room, with a pin wherever your photos were taken.
+            Photos bring their place along when you add them (if the phone saved where they were taken). Photos added before
+            this, screenshots and pictures from chats have none — give them one here. Only the place is kept, rounded to about
+            100 m; everything else in the photo's data is still removed.</p>
+          <form class="panel text-panel map-settings">
+            <label class="check"><input type="checkbox" name="enabled" /> Show the map table in the hidden last room</label>
+            <label>Title on the table <input name="title" maxlength="40" /></label>
+          </form>
+          <div class="map-tools">
+            <span class="map-count"></span>
+            <button class="icon map-zoom-in" type="button" aria-label="Zoom in">+</button>
+            <button class="icon map-zoom-out" type="button" aria-label="Zoom out">−</button>
+            <button class="btn btn-ghost map-fit" type="button">Show all pins</button>
+          </div>
+          <canvas class="map-canvas"></canvas>
+          <p class="map-hint help"></p>
+          <ul class="map-list"></ul>
+        </div>
+
+        <!-- Key hunt -->
+        <div class="tab" data-panel="hunt" hidden>
+          <form class="panel text-panel hunt-settings">
+            <label class="check"><input type="checkbox" name="enabled" /> Key hunt on</label>
+            <div class="form-row">
+              <label class="hunt-count">How many <input type="number" name="count" min="1" max="30" /></label>
+              <div class="hunt-shape-pick">
+                <span>Shape</span>
+                <div class="hunt-shapes"></div>
+              </div>
+            </div>
+            <label class="check"><input type="checkbox" name="obvious" /> Make them easy to spot (bigger, glowing) — off: small and hidden in the picture</label>
+            <label class="check"><input type="checkbox" name="locks" /> The curtain to the last room only opens once all of them are found</label>
+            <p class="hint hunt-locks-note">(The hidden last room is switched off right now — Preview → the last room.)</p>
+            <div class="hunt-actions">
+              <button class="btn btn-ghost hunt-random" type="button">Hide the rest for me</button>
+              <span class="hunt-status"></span>
+              <button class="link hunt-reset" type="button" hidden>Hide them all again for the guests</button>
+            </div>
+          </form>
+          <div class="hunt-board">
+            <div class="key-source" title="Drag from here onto a photo to hide one · drag one back here to take it out">
+              <span class="key-source-emoji">🔑</span>
+              <span class="key-source-count"></span>
+            </div>
+            <p class="help">Drag from the big key onto a photo to hide one there. Drag a key to move it, or back onto the big key to
+              take it out. Click a photo to see it bigger (you can move its keys there too). In the museum, visitors find them
+              by tapping them — on the wall or in the photo viewer.</p>
+            <p class="empty hunt-empty">No photos yet — add them in the Preview tab.</p>
+            <div class="hunt-grid"></div>
+          </div>
+        </div>
+
         <!-- Preview & layout -->
         <div class="tab" data-panel="preview" hidden>
           <p class="help">Seen from above: visitors start on the left and walk to the right. <strong>Click</strong> a room, a numbered spot,
-            the <strong>start</strong> dot or the last room to edit it below. <span class="key-filled">Green</span> spots have a photo,
-            <span class="key-empty">red</span> ones are free. <strong>Drag</strong> a green number onto another spot or room to move that photo.
-            Everything saves by itself.</p>
+            a bench, the <strong>start</strong> dot or the last room to edit it below. <span class="key-filled">Green</span> spots have a photo,
+            <span class="key-empty">red</span> ones are free, 🪞 is the mirror. <strong>Drag</strong> a green number (or the 🪞) onto another
+            spot or room to move it, and a ▶ onto another bench. You can also drop photo and video files straight onto a spot, a bench
+            or a room. Everything saves by itself.</p>
           <div class="plan-tools">
+            <label class="btn btn-ghost add-photos">+ Add photos
+              <input class="photos-input" type="file" accept="image/*,.heic,.heif" multiple hidden />
+            </label>
+            <button class="btn btn-ghost add-samples" type="button">Add 10 sample photos</button>
             <button class="btn btn-ghost add-room" type="button">+ Add room</button>
+            <button class="btn btn-ghost add-mirror" type="button" hidden>+ Mirror</button>
             <span class="layout-status" aria-live="polite"></span>
           </div>
           <div class="plan-wrap"></div>
@@ -169,7 +219,7 @@
 
           <div class="panel spot-panel" hidden>
             <div class="spot-filled">
-              <img class="sp-photo" alt="" />
+              <div class="sp-frame key-photo" title="Click to see it bigger"><img class="sp-photo" alt="" /></div>
               <div class="photo-fields">
                 <p class="sp-where"></p>
                 <input name="title" placeholder="Title" maxlength="80" />
@@ -181,11 +231,55 @@
                 </div>
               </div>
             </div>
-            <label class="dropzone spot-empty">
-              <input class="spot-input" type="file" accept="image/*,.heic,.heif" />
-              <strong class="sp-empty-title"></strong>
-              <small>Drop a photo here or click to choose one for this spot</small>
+            <div class="spot-empty-wrap">
+              <label class="dropzone spot-empty">
+                <input class="spot-input" type="file" accept="image/*,.heic,.heif" />
+                <strong class="sp-empty-title"></strong>
+                <span class="btn sp-add">+ Add a photo</span>
+                <small>or drop one here</small>
+              </label>
+              <button class="btn btn-ghost sp-mirror" type="button">🪞 Hang the mirror here</button>
+            </div>
+          </div>
+
+          <div class="panel mirror-panel" hidden>
+            <h3>🪞 The mirror</h3>
+            <p class="help">From far away it's black. Standing in front of it, it swirls and turns into <em>the thing you want the most</em>:
+              how you dream to be in the future, or how things would have been if you'd never met. Every person sees their own pictures
+              (several take turns). Without a picture for someone, the mirror shows the two of you, reflected.</p>
+            <p class="mirror-ai">✨ Making these pictures with AI right here is coming in a future update. For now, make them in an AI app
+              of your choice and add them below.</p>
+            <div class="mirror-people"></div>
+            <p class="upload-status mirror-status" aria-live="polite"></p>
+            <div class="danger-zone">
+              <button class="btn btn-ghost mirror-remove" type="button">Take the mirror down</button>
+            </div>
+          </div>
+
+          <div class="panel video-panel" hidden>
+            <div class="spot-filled">
+              <div class="sp-frame vp-frame" title="Click to play it"><img class="sp-photo vp-poster" alt="" /><span class="vp-play">▶</span></div>
+              <div class="photo-fields">
+                <p class="sp-where vp-where"></p>
+                <input name="title" placeholder="Title" maxlength="80" />
+                <textarea name="caption" rows="2" placeholder="Caption (optional)" maxlength="300"></textarea>
+                <div class="photo-row">
+                  <span class="saved vp-info"></span>
+                  <button class="btn btn-danger vp-delete" type="button">Delete video</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel bench-panel" hidden>
+            <label class="dropzone bench-drop">
+              <input class="video-input" type="file" accept="video/*" />
+              <strong class="bp-title">Add a video to this bench</strong>
+              <span class="btn">+ Add a video</span>
+              <small>It hangs on the wall in front of this bench and plays — with sound — when someone sits here. Any phone video,
+                any length · converted in your browser to a small MP4 that plays everywhere · up to 50 MB (a long video gets a lower quality to fit)</small>
             </label>
+            <p class="upload-status video-status" aria-live="polite"></p>
           </div>
 
           <form class="panel text-panel start-panel" hidden>
@@ -198,6 +292,20 @@
             <label>Language of the texts
               <select name="language"><option value="en">English</option><option value="el">Ελληνικά (Greek)</option></select>
             </label>
+            <label>Decoration
+              <select name="decoration">
+                <option value="none">None</option>
+                <option value="seasonal">Seasonal — changes by itself with the date</option>
+                <option value="halloween">🎃 Halloween</option>
+                <option value="christmas">🎄 Christmas</option>
+                <option value="winter">❄️ Winter</option>
+                <option value="valentine">💝 Valentine's</option>
+                <option value="spring">🌸 Spring</option>
+                <option value="summer">🌻 Summer</option>
+                <option value="autumn">🍂 Autumn</option>
+              </select>
+            </label>
+            <p class="hint decoration-now"></p>
             <div class="danger-zone">
               <button class="btn btn-danger delete-museum" type="button">Delete this museum</button>
             </div>

@@ -10,9 +10,13 @@
  *   museums/{id}/music/{version}-{n}   the song, in pieces of < 1 MB
  *   museums/{id}/videos/{videoId}      video details + poster picture
  *   museums/{id}/videochunks/{videoId}-{n}   the video, in pieces of < 1 MB
+ *   museums/{id}/mirror/{imageId}      a picture for the mirror (+ thumbnail); its
+ *                                      md/lg bytes live in images/ like a photo's
+ *   museums/{id}/visits/{email}        written by each guest: last visit, time zone
  *
  * Guest lists are mirrored to the Realtime Database (access/{email,with,commas})
- * because the live-avatar rules there can't read Firestore.
+ * because the live-avatar rules there can't read Firestore. The key hunt's
+ * finds live there too (hunt/{museumId}/{keyId}).
  */
 import { getFirestoreDb, getRealtimeDb } from '../backend/firebase.js';
 import { newMuseumData } from '../museumConfig.js';
@@ -68,13 +72,14 @@ export async function saveMuseum(id, patch) {
 /** Deletes a museum with all its photos, music and guest-list entries. */
 export async function deleteMuseum(id) {
   const { db, fs } = await fsdb();
-  for (const part of ['photos', 'images', 'music', 'videos', 'videochunks']) {
+  for (const part of ['photos', 'images', 'music', 'videos', 'videochunks', 'mirror', 'visits']) {
     const snap = await fs.getDocs(fs.collection(db, 'museums', id, part));
     for (const d of snap.docs) await fs.deleteDoc(d.ref); // one by one: image documents are big
   }
   for (const email of await listGuests(id)) await removeGuest(id, email, { sync: false });
   await fs.deleteDoc(fs.doc(db, 'museums', id));
   await syncAccessMirror();
+  await resetHunt(id);
 }
 
 // ── Guests ────────────────────────────────────────────────────────────
@@ -110,6 +115,16 @@ export async function removeGuest(museumId, email, { sync = true } = {}) {
   const { db, fs } = await fsdb();
   await fs.updateDoc(fs.doc(db, 'access', normalizeEmail(email)), { museums: fs.arrayRemove(museumId) });
   if (sync) await syncAccessMirror();
+}
+
+/** When each guest last came in (they write it themselves): Map email → { at: Date, tz, yes, dodges }. */
+export async function listVisits(museumId) {
+  const { db, fs } = await fsdb();
+  const snap = await fs.getDocs(fs.collection(db, 'museums', museumId, 'visits'));
+  return new Map(snap.docs.map((d) => {
+    const v = d.data();
+    return [d.id, { ...v, at: v.at?.toDate?.() ?? null, yes: v.yes?.toDate?.() ?? null }];
+  }));
 }
 
 /**
@@ -149,6 +164,8 @@ export async function uploadPhoto(museumId, processed, details) {
     width: processed.width,
     height: processed.height,
     color: processed.color,
+    lat: processed.gps?.lat ?? null, // where it was taken (memory map)
+    lng: processed.gps?.lng ?? null,
     bytes: processed.md.length + processed.lg.length + processed.thumb.length, // for the storage meter
     thumb: fs.Bytes.fromUint8Array(processed.thumb),
     createdAt: fs.serverTimestamp(),
@@ -265,4 +282,54 @@ export async function deleteVideo(museumId, video) {
   const { db, fs } = await fsdb();
   await fs.deleteDoc(fs.doc(db, 'museums', museumId, 'videos', video.id));
   for (let i = 0; i < video.chunks; i++) await fs.deleteDoc(fs.doc(db, 'museums', museumId, 'videochunks', `${video.id}-${i}`));
+}
+
+// ── The mirror's pictures ─────────────────────────────────────────────
+export async function listMirrorImages(museumId) {
+  const { db, fs } = await fsdb();
+  const snap = await fs.getDocs(fs.query(fs.collection(db, 'museums', museumId, 'mirror'), fs.orderBy('order')));
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+}
+
+/** A processed picture (imageTools.js) for the mirror, for one guest (`for`: their email, or '' for everyone). */
+export async function uploadMirrorImage(museumId, processed, details) {
+  const { db, fs } = await fsdb();
+  const ref = fs.doc(fs.collection(db, 'museums', museumId, 'mirror'));
+  const batch = fs.writeBatch(db);
+  const data = {
+    ...details,
+    width: processed.width,
+    height: processed.height,
+    bytes: processed.md.length + processed.lg.length + processed.thumb.length,
+    thumb: fs.Bytes.fromUint8Array(processed.thumb),
+    createdAt: fs.serverTimestamp(),
+  };
+  batch.set(ref, data);
+  batch.set(fs.doc(db, 'museums', museumId, 'images', `${ref.id}-md`), { data: fs.Bytes.fromUint8Array(processed.md) });
+  batch.set(fs.doc(db, 'museums', museumId, 'images', `${ref.id}-lg`), { data: fs.Bytes.fromUint8Array(processed.lg) });
+  await batch.commit();
+  return { id: ref.id, ...data };
+}
+
+export async function deleteMirrorImage(museumId, imageId) {
+  const { db, fs } = await fsdb();
+  const batch = fs.writeBatch(db);
+  batch.delete(fs.doc(db, 'museums', museumId, 'mirror', imageId));
+  batch.delete(fs.doc(db, 'museums', museumId, 'images', `${imageId}-md`));
+  batch.delete(fs.doc(db, 'museums', museumId, 'images', `${imageId}-lg`));
+  await batch.commit();
+}
+
+// ── Key hunt ──────────────────────────────────────────────────────────
+/** Which keys the guests have found so far: Map keyId → { by, t }. */
+export async function listHuntFinds(museumId) {
+  const { db, rt } = await getRealtimeDb();
+  const snap = await rt.get(rt.ref(db, `hunt/${museumId}`));
+  return new Map(Object.entries(snap.val() ?? {}));
+}
+
+/** Hide every key again (the guests start the hunt from scratch). */
+export async function resetHunt(museumId) {
+  const { db, rt } = await getRealtimeDb();
+  await rt.remove(rt.ref(db, `hunt/${museumId}`));
 }

@@ -7,7 +7,8 @@
  *   thumb   240 px long edge             (curator page + floor plan)
  *
  * Re-encoding also strips the camera/GPS metadata, and the phone's rotation
- * (EXIF orientation) is applied by the browser while decoding.
+ * (EXIF orientation) is applied by the browser while decoding. Only where the
+ * photo was taken is read first (rounded to about 100 m) for the memory map.
  */
 const SIZES = {
   md: { edge: 1024, quality: 0.82, maxBytes: 450_000 },
@@ -16,14 +17,29 @@ const SIZES = {
 };
 
 export async function processImage(file) {
+  const gps = await readPlace(file);
   const bitmap = await decode(file);
   try {
     const md = await encode(bitmap, SIZES.md);
     const lg = await encode(bitmap, SIZES.lg);
     const thumb = await encode(bitmap, SIZES.thumb);
-    return { md: md.bytes, lg: lg.bytes, thumb: thumb.bytes, width: md.width, height: md.height, color: averageColor(bitmap) };
+    return { md: md.bytes, lg: lg.bytes, thumb: thumb.bytes, width: md.width, height: md.height, color: averageColor(bitmap), gps };
   } finally {
     bitmap.close?.();
+  }
+}
+
+/** Where the photo was taken ({ lat, lng }, rounded to ~100 m), or null. */
+async function readPlace(file) {
+  try {
+    const { default: exifr } = await import('exifr/dist/lite.esm.mjs');
+    const gps = await exifr.gps(file);
+    if (!gps || !Number.isFinite(gps.latitude) || !Number.isFinite(gps.longitude)) return null;
+    if (gps.latitude === 0 && gps.longitude === 0) return null;
+    const round = (v) => Math.round(v * 1000) / 1000;
+    return { lat: round(gps.latitude), lng: round(gps.longitude) };
+  } catch {
+    return null; // no location, or a format it can't read: fine
   }
 }
 

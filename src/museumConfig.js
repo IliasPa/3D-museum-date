@@ -12,7 +12,18 @@ export function museumConfig(data = {}) {
     language: data.language || CONFIG.language,
     rooms: Array.isArray(data.rooms) && data.rooms.length ? data.rooms : CONFIG.rooms,
     finale: { ...CONFIG.finale, ...(data.finale ?? {}) },
+    decoration: data.decoration || CONFIG.decoration,
+    proposal: { ...CONFIG.proposal, ...(data.proposal ?? {}) },
+    hunt: { ...CONFIG.hunt, ...(data.hunt ?? {}), keys: Array.isArray(data.hunt?.keys) ? data.hunt.keys : [] },
+    mirror: { ...CONFIG.mirror, ...(data.mirror ?? {}) },
+    memoryMap: { ...CONFIG.memoryMap, ...(data.memoryMap ?? {}) },
+    guestSettings: data.guestSettings ?? {},
   };
+}
+
+/** One guest's own settings (name, guided tour, reduced motion). */
+export function guestSettings(config, email) {
+  return { name: '', tour: false, reducedMotion: false, ...(config.guestSettings?.[String(email).toLowerCase()] ?? {}) };
 }
 
 /** What a brand-new museum starts with (the curator edits it in /admin). */

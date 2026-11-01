@@ -45,6 +45,48 @@ Every line break you type shows up here, too.`,
     signature: '— Me',
   },
 
+  // ── Seasonal decorations ────────────────────────────────────────
+  // (Each museum picks its own in /admin → Preview → start dot.)
+  // 'none', 'seasonal' (changes with the date by itself), or one of
+  // 'halloween' | 'christmas' | 'winter' | 'valentine' | 'spring' | 'summer' | 'autumn'.
+  decoration: 'none',
+
+  // ── Proposal mode (/admin → Proposal) ───────────────────────────
+  proposal: {
+    enabled: false,
+    proposer: '', // the guest email who kneels with the ring
+    question: 'Will you marry me?',
+    yes: 'YES 💍',
+    no: 'No',
+    after: 'Best answer ever ♥',
+    metal: 'gold', // 'gold' | 'silver' | 'rose'
+    gem: '#e8f4ff',
+  },
+
+  // ── Key hunt (/admin → Key hunt) ────────────────────────────────
+  hunt: {
+    enabled: false,
+    count: 5, // how many to hide
+    shape: 'key', // 'key' | 'heart' | 'star' | 'ring' | 'flower' | 'shell'
+    obvious: false, // bigger and glowing, for easier finding
+    locks: true, // the curtain stays closed until every one is found
+    keys: [], // [{ id, photo, x, y }] — x, y from 0…1 across the photo
+  },
+
+  // ── Memory map table in the hidden last room (/admin → Memory map) ──
+  // Shows a pin wherever the photos were taken (only if some have a place).
+  memoryMap: {
+    enabled: true,
+    title: 'Our places',
+  },
+
+  // ── The mirror (a spot on the walls; /admin → Preview) ──────────
+  mirror: {
+    enabled: true,
+    room: null, // where it hangs (null = the last room's first free spot)
+    slot: null,
+  },
+
   // ── Music ───────────────────────────────────────────────────────
   // Each museum can have its own song (/admin → Music). Without one,
   // public/audio/song.mp3 plays.

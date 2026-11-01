@@ -5,8 +5,9 @@
  * the left and you walk towards the right.
  *
  * Every wall spot for a photo is a numbered circle — green with a photo, red
- * without. Click a spot, a room, the start dot or the last room to edit it;
- * drag a green spot onto another spot (or room) to move that photo.
+ * without (the mirror is a 🪞). Click a spot, a bench, a room, the start dot or
+ * the last room to edit it; drag a green spot (or the mirror) onto another
+ * spot or room to move it, and a ▶ onto another bench or room.
  */
 import { planMuseum, WALL_THICKNESS, FINALE_DOOR_WIDTH } from '../world/layout.js';
 
@@ -32,17 +33,19 @@ function box(x0, x1, z0, z1, attrs) {
 /**
  * @param config  museum settings (museumConfig.js)
  * @param photos  [{ id, room, slot, width, height, color, title }]
- * @param videos  [{ id, room, width, height, title }]
+ * @param videos  [{ id, room, bench, width, height, title }]
  * @param opts {
- *   selected   what's highlighted: { kind: 'room', index } | { kind: 'spot', room, slot } | { kind: 'start' } | { kind: 'finale' }
- *   onSelect   (selection | { kind: 'video', video }) => void
- *   onDrop     (photo, { room, slot } | { room }) => void   — a photo dragged to a spot or a room
- *   onVideoDrop (video, room) => void
+ *   selected   what's highlighted: { kind: 'room', index } | { kind: 'spot', room, slot } | { kind: 'bench', room, bench }
+ *              | { kind: 'video', id } | { kind: 'start' } | { kind: 'finale' }
+ *   onSelect   (selection) => void
+ *   onDrop     (photo, { room, slot } | { room }) => void   — a photo (or the mirror) dragged to a spot or a room
+ *   onVideoDrop (video, { room, bench } | { room }) => void
+ *   keys       Map photoId → emoji: photos that hide a key (key hunt)
  * }
- * @returns { svg, plan }
+ * @returns { svg, plan, hitTest(clientX, clientY) → { spot, bench, room } } — hitTest finds what's under a dropped file
  */
 export function renderFloorPlan(config, photos, videos, opts = {}) {
-  const { selected = null, onSelect = () => {}, onDrop = () => {}, onVideoDrop = () => {} } = opts;
+  const { selected = null, onSelect = () => {}, onDrop = () => {}, onVideoDrop = () => {}, keys = new Map() } = opts;
   const plan = planMuseum(config, photos, videos);
   const { z0, z1 } = plan.bounds;
   // With the hidden room switched off, still show where it would be (faded) so it can be switched on.
@@ -95,15 +98,25 @@ export function renderFloorPlan(config, photos, videos, opts = {}) {
   // Benches, and the video screens in front of them.
   const badges = []; // draggable: { kind: 'photo' | 'video', item, label, g }
   const spotBadges = []; // drop places: { spot, cx, cy, g }
+  const benchSpots = []; // drop places for videos: { bench, cx, cy, rect }
   for (const bench of plan.benches) {
-    svg.append(box(bench.x - 0.28, bench.x + 0.28, bench.z - 1.1, bench.z + 1.1, { fill: '#a8754f', stroke: '#5a3a28', 'stroke-width': 0.05, 'pointer-events': 'none' }));
+    const room = bench.roomIndex + 1;
+    const video = bench.video;
+    const on = video ? is('video', (s) => s.id === video.id) : is('bench', (s) => s.room === room && s.bench === bench.index);
+    const rect = box(bench.x - 0.28, bench.x + 0.28, bench.z - 1.1, bench.z + 1.1, {
+      fill: '#a8754f', stroke: '#5a3a28', 'stroke-width': 0.05, class: `plan-bench editable${on ? ' selected' : ''}`,
+    });
+    rect.append(el('title', {}, video ? `▶ ${video.title || 'Video'}` : 'Bench — click to add a video here'));
+    rect.addEventListener('click', () => onSelect(video ? { kind: 'video', id: video.id } : { kind: 'bench', room, bench: bench.index }));
+    svg.append(rect);
+    benchSpots.push({ bench, cx: px(bench.x, bench.z), cy: py(bench.x), rect });
     if (!bench.screen) continue;
     const s = bench.screen;
     const t = 0.34;
     svg.append(box(s.x + s.nx * t - t / 2, s.x + s.nx * t + t / 2, s.z - s.width / 2, s.z + s.width / 2, { fill: '#1c1a1b', 'pointer-events': 'none' }));
     const bx = s.x + s.nx * 1.3;
-    const g = badge(svg, px(bx, s.z), py(bx), '▶', `▶ ${bench.video.title || 'Video'} — plays when someone sits on this bench`, 'plan-video');
-    badges.push({ kind: 'video', item: bench.video, label: '▶', g });
+    const g = badge(svg, px(bx, s.z), py(bx), '▶', `▶ ${video.title || 'Video'} — plays when someone sits on this bench`, `plan-video${on ? ' selected' : ''}`);
+    badges.push({ kind: 'video', item: video, label: '▶', g });
   }
 
   // Photo spots on the walls: a coloured bar where a photo hangs, and a numbered circle.
@@ -127,12 +140,20 @@ export function renderFloorPlan(config, photos, videos, opts = {}) {
     const bz = spot.z + spot.nz * 1.25;
     const room = spot.roomIndex + 1;
     const on = is('spot', (s) => s.room === room && s.slot === spot.slot);
-    const title = spot.photo ? spot.photo.title || `Photo ${spot.number}` : `Spot ${spot.number} — empty: click to add a photo`;
-    const g = badge(svg, px(bx, bz), py(bx), String(spot.number), title, `${spot.photo ? 'plan-filled' : 'plan-empty'}${on ? ' selected' : ''}`);
+    const mirror = spot.photo?.isMirror;
+    const label = mirror ? '🪞' : String(spot.number);
+    const title = mirror ? 'The mirror — click to choose its pictures, drag to move it'
+      : spot.photo ? spot.photo.title || `Photo ${spot.number}` : `Spot ${spot.number} — empty: click to add a photo`;
+    const kind = mirror ? 'plan-filled plan-mirror' : spot.photo ? 'plan-filled' : 'plan-empty';
+    const g = badge(svg, px(bx, bz), py(bx), label, title, `${kind}${on ? ' selected' : ''}`);
     g.dataset.spot = spot.number;
     spotBadges.push({ spot, cx: px(bx, bz), cy: py(bx), g });
-    if (spot.photo) badges.push({ kind: 'photo', item: spot.photo, spot, label: String(spot.number), g });
+    if (spot.photo) badges.push({ kind: 'photo', item: spot.photo, spot, label, g });
     else g.addEventListener('click', () => onSelect({ kind: 'spot', room, slot: spot.slot }));
+    // A photo that hides a key (key hunt): a little key next to its number.
+    if (spot.photo && keys.has(spot.photo.id)) {
+      svg.append(el('text', { x: px(bx, bz) + 0.62, y: py(bx) - 0.55, class: 'plan-key', 'font-size': 0.62, 'pointer-events': 'none' }, keys.get(spot.photo.id)));
+    }
   }
 
   // Where visitors start (click it to edit the start screen).
@@ -167,6 +188,7 @@ export function renderFloorPlan(config, photos, videos, opts = {}) {
   /** The gallery room under a plan point. */
   const roomAt = (p) => plan.rooms.find((r) => !r.isFinale && p.y > r.x0 && p.y < r.x1 && -p.x > r.z0 && -p.x < r.z1);
   const spotAt = (p) => spotBadges.find((s) => Math.hypot(s.cx - p.x, s.cy - p.y) < 0.9) ?? null;
+  const benchAt = (p) => benchSpots.find((b) => Math.abs(b.cx - p.x) < 1.3 && Math.abs(b.cy - p.y) < 0.6) ?? null;
 
   for (const b of badges) {
     b.g.addEventListener('pointerdown', (e) => {
@@ -190,11 +212,14 @@ export function renderFloorPlan(config, photos, videos, opts = {}) {
     }
     drag.ghost.setAttribute('transform', `translate(${p.x} ${p.y})`);
     const spot = drag.b.kind === 'photo' ? spotAt(p) : null;
-    const room = spot ? null : roomAt(p);
+    const bench = drag.b.kind === 'video' ? benchAt(p) : null;
+    const room = spot || bench ? null : roomAt(p);
     roomRects.forEach((r, i) => r.classList.toggle('drop-target', room?.index === i));
     spotBadges.forEach((s) => s.g.classList.toggle('drop-onto', s === spot && s.spot !== drag.b.spot));
+    benchSpots.forEach((b) => b.rect.classList.toggle('drop-target', b === bench));
     drag.room = room;
     drag.spot = spot;
+    drag.bench = bench;
   });
   const end = (cancelled) => {
     if (!drag) return;
@@ -204,12 +229,14 @@ export function renderFloorPlan(config, photos, videos, opts = {}) {
     d.b.g.classList.remove('dragging');
     roomRects.forEach((r) => r.classList.remove('drop-target'));
     spotBadges.forEach((s) => s.g.classList.remove('drop-onto'));
+    benchSpots.forEach((b) => b.rect.classList.remove('drop-target'));
     if (cancelled) return;
     if (!d.moved) {
-      if (d.b.kind === 'video') onSelect({ kind: 'video', video: d.b.item });
+      if (d.b.kind === 'video') onSelect({ kind: 'video', id: d.b.item.id });
       else onSelect({ kind: 'spot', room: d.b.spot.roomIndex + 1, slot: d.b.spot.slot });
     } else if (d.b.kind === 'video') {
-      if (d.room) onVideoDrop(d.b.item, d.room.index + 1);
+      if (d.bench) onVideoDrop(d.b.item, { room: d.bench.bench.roomIndex + 1, bench: d.bench.bench.index });
+      else if (d.room) onVideoDrop(d.b.item, { room: d.room.index + 1 });
     } else if (d.spot && d.spot.spot !== d.b.spot) {
       onDrop(d.b.item, { room: d.spot.spot.roomIndex + 1, slot: d.spot.spot.slot });
     } else if (d.room) {
@@ -218,7 +245,21 @@ export function renderFloorPlan(config, photos, videos, opts = {}) {
   };
   svg.addEventListener('pointerup', () => end(false));
   svg.addEventListener('pointercancel', () => end(true));
-  return { svg, plan };
+
+  /** What's under a point on the screen (for files dropped onto the plan). */
+  const hitTest = (clientX, clientY) => {
+    const p = toPlan({ clientX, clientY });
+    const spot = spotAt(p)?.spot ?? null;
+    const bench = benchAt(p)?.bench ?? null;
+    return { spot, bench, room: spot || bench ? null : roomAt(p) ?? null };
+  };
+  /** Highlight the drop place under a dragged file (or nothing). */
+  const showDrop = (hit) => {
+    roomRects.forEach((r, i) => r.classList.toggle('drop-target', hit?.room?.index === i));
+    spotBadges.forEach((s) => s.g.classList.toggle('drop-onto', Boolean(hit?.spot) && s.spot === hit.spot));
+    benchSpots.forEach((b) => b.rect.classList.toggle('drop-target', Boolean(hit?.bench) && b.bench === hit.bench));
+  };
+  return { svg, plan, hitTest, showDrop };
 }
 
 /** A numbered (or ▶) circle that can be clicked or dragged. */

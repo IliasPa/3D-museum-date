@@ -8,6 +8,10 @@ rules_version = '2';
 //   museums/{museumId}/photos = photo details (+ a tiny thumbnail)
 //   museums/{museumId}/images = the photo files themselves (md + lg)
 //   museums/{museumId}/music  = the song, split into pieces
+//   museums/{museumId}/mirror = the mirror's pictures (their bytes are in images)
+//   museums/{museumId}/visits/{email} = written by each guest themselves:
+//                               when they last came in, their time zone (for the
+//                               clocks) and, after a proposal, when they said yes
 service cloud.firestore {
   match /databases/{database}/documents {
 
@@ -42,6 +46,16 @@ service cloud.firestore {
       match /{part}/{docId} {
         allow read: if isAdmin() || isGuest(museumId);
         allow write: if isAdmin();
+      }
+
+      // A guest's own visit record — only their own, only these fields.
+      match /visits/{email} {
+        allow create, update: if isGuest(museumId) && email == myEmail()
+          && request.resource.data.keys().hasOnly(['at', 'tz', 'yes', 'dodges'])
+          && request.resource.data.at == request.time
+          && request.resource.data.tz is string && request.resource.data.tz.size() <= 64
+          && (!('yes' in request.resource.data) || request.resource.data.yes is timestamp)
+          && (!('dodges' in request.resource.data) || (request.resource.data.dodges is int && request.resource.data.dodges >= 0));
       }
     }
   }

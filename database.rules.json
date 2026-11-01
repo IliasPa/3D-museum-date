@@ -48,6 +48,25 @@
           }
         }
       }
+    },
+    "hunt": {
+      "$museum": {
+        ".read": "(auth != null && auth.token.email_verified == true && root.child('access').child(auth.token.email.toLowerCase().replace('.', ',')).child($museum).val() == true) || (auth != null && auth.token.email_verified == true && auth.token.email.toLowerCase() == 'iliasparaskevas3@gmail.com')",
+        ".write": "auth != null && auth.token.email_verified == true && auth.token.email.toLowerCase() == 'iliasparaskevas3@gmail.com'",
+        "$key": {
+          ".write": "auth != null && auth.token.email_verified == true && root.child('access').child(auth.token.email.toLowerCase().replace('.', ',')).child($museum).val() == true && !data.exists()",
+          ".validate": "newData.hasChildren(['by', 't'])",
+          "by": {
+            ".validate": "newData.isString() && newData.val().length <= 40"
+          },
+          "t": {
+            ".validate": "newData.isNumber()"
+          },
+          "$other": {
+            ".validate": false
+          }
+        }
+      }
     }
   }
 }
