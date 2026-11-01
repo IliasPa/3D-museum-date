@@ -16,6 +16,7 @@ export class RemoteAvatars {
     this.scene = scene;
     this.people = new Map(); // uid → { avatar, emotes, pos, facing, speed, target, … }
     this.selfId = null; // your uid (to recognise actions aimed at you)
+    this.ring = null; // the proposal ring's metal and stone (museumConfig → proposal)
     this.onEmote = () => {}; // (x, y, z) — someone pressed ♥
     this.onTargeted = () => {}; // (reactionId, fromUid)
   }
@@ -84,13 +85,16 @@ export class RemoteAvatars {
   #add(uid, state) {
     const look = decodeLook(state.look) ?? defaultLook();
     const avatar = new ProceduralAvatar(look);
+    avatar.ring = this.ring;
     const tag = nameTag(state.name);
     tag.position.y = avatar.topY ?? 1.62; // just above their head (or hat)
     avatar.root.add(tag);
     this.scene.add(avatar.root);
+    const emotes = new EmotePlayer();
+    emotes.next = (def) => (def.seated && def.id !== 'S' ? 'S' : null); // after a bench action: sitting again
     const p = {
       avatar,
-      emotes: new EmotePlayer(),
+      emotes,
       lookText: state.look,
       pos: new THREE.Vector3(state.x, 0, state.z),
       facing: state.f ?? 0,

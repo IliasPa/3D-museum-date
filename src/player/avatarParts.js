@@ -1076,66 +1076,78 @@ export function buildHeld(a) {
     a.held = { object: group, carry: false };
     return;
   }
+  if (kind !== 'teddy') {
+    const g = handItem(kind, m);
+    a.held = { object: g, carry: true };
+    a.hands[1].add(g);
+    return;
+  }
+  // A teddy: held by its paw, dangling.
+  const g = new THREE.Group();
+  g.position.set(0, -0.058, 0.03); // in the curled fingers
+  const fur = mat('#b07a4a');
+  const light = mat('#e8c99b');
+  const t = new THREE.Group();
+  t.position.set(0, -0.06, 0);
+  put(t, sphere(0.065, 16, 12), fur, 0, -0.13, 0).scale.set(1, 1.1, 0.9);
+  put(t, sphere(0.055, 16, 12), fur, 0, -0.03, 0);
+  put(t, sphere(0.024, 10, 8), light, 0.048, -0.04, 0);
+  for (const s of [-1, 1]) {
+    put(t, sphere(0.02, 10, 8), fur, 0, 0.012, s * 0.04);
+    put(t, sphere(0.022, 10, 8), fur, 0.0, -0.2, s * 0.04);
+    put(t, sphere(0.008, 6, 4), m.dark, 0.05, -0.015, s * 0.02);
+  }
+  put(t, sphere(0.008, 6, 4), m.dark, 0.072, -0.035, 0);
+  put(t, capsule(0.018, 0.04, 2, 8), fur, 0, 0.02, 0.0).rotation.z = 0.3; // the paw being held
+  g.add(t);
+  a.held = { object: g, carry: false };
+  a.hands[1].add(g);
+}
+
+/**
+ * Something held in the curled fingers (a rose, an ice cream…), its length
+ * along the hand's +x. Used for the "carry" extras and by actions (avatar.prop).
+ */
+export function handItem(kind, m) {
   const g = new THREE.Group();
   g.position.set(0, -0.058, 0.03); // in the curled fingers
   const along = (geo) => {
     geo.rotateZ(-Math.PI / 2); // cylinders and cones: their length along +x
     return geo;
   };
-  if (kind === 'teddy') {
-    // Held by its paw, dangling.
-    const fur = mat('#b07a4a');
-    const light = mat('#e8c99b');
-    const t = new THREE.Group();
-    t.position.set(0, -0.06, 0);
-    put(t, sphere(0.065, 16, 12), fur, 0, -0.13, 0).scale.set(1, 1.1, 0.9);
-    put(t, sphere(0.055, 16, 12), fur, 0, -0.03, 0);
-    put(t, sphere(0.024, 10, 8), light, 0.048, -0.04, 0);
-    for (const s of [-1, 1]) {
-      put(t, sphere(0.02, 10, 8), fur, 0, 0.012, s * 0.04);
-      put(t, sphere(0.022, 10, 8), fur, 0.0, -0.2, s * 0.04);
-      put(t, sphere(0.008, 6, 4), m.dark, 0.05, -0.015, s * 0.02);
+  if (kind === 'rose') {
+    put(g, along(new THREE.CylinderGeometry(0.005, 0.005, 0.26, 6)), mat('#3f7d3a'), 0.05, 0, 0);
+    const red = mat('#d62b4b');
+    put(g, sphere(0.03, 14, 10), red, 0.19, 0, 0).scale.set(1.2, 1, 1);
+    for (let i = 0; i < 5; i++) {
+      const t = (i / 5) * Math.PI * 2;
+      put(g, sphere(0.02, 10, 8), red, 0.175, Math.cos(t) * 0.025, Math.sin(t) * 0.025);
     }
-    put(t, sphere(0.008, 6, 4), m.dark, 0.072, -0.035, 0);
-    put(t, capsule(0.018, 0.04, 2, 8), fur, 0, 0.02, 0.0).rotation.z = 0.3; // the paw being held
-    g.add(t);
-    a.held = { object: g, carry: false };
-  } else {
-    if (kind === 'rose') {
-      put(g, along(new THREE.CylinderGeometry(0.005, 0.005, 0.26, 6)), mat('#3f7d3a'), 0.05, 0, 0);
-      const red = mat('#d62b4b');
-      put(g, sphere(0.03, 14, 10), red, 0.19, 0, 0).scale.set(1.2, 1, 1);
-      for (let i = 0; i < 5; i++) {
-        const t = (i / 5) * Math.PI * 2;
-        put(g, sphere(0.02, 10, 8), red, 0.175, Math.cos(t) * 0.025, Math.sin(t) * 0.025);
-      }
-      const leaf = put(g, sphere(0.02, 10, 6), mat('#4f9a48'), 0.07, 0.02, 0);
-      leaf.scale.set(1.8, 0.5, 0.8);
-    } else if (kind === 'icecream') {
-      put(g, along(new THREE.ConeGeometry(0.036, 0.11, 16)).rotateZ(Math.PI), mat('#d9a066'), 0.035, 0, 0);
-      put(g, sphere(0.04, 16, 12), mat('#ff9eb5'), 0.1, 0, 0);
-      put(g, sphere(0.034, 16, 12), mat('#fff3d6'), 0.145, 0, 0);
-      put(g, sphere(0.012, 8, 6), mat('#d62b4b'), 0.18, 0, 0);
-    } else if (kind === 'coffee') {
-      put(g, along(new THREE.CylinderGeometry(0.036, 0.03, 0.11, 18)), mat('#fbf8f4'), 0.03, 0, 0);
-      put(g, along(new THREE.CylinderGeometry(0.038, 0.038, 0.015, 18)), mat('#6b4423'), 0.09, 0, 0);
-      put(g, along(new THREE.CylinderGeometry(0.037, 0.034, 0.04, 18)), mat('#c49a6c'), 0.035, 0, 0);
-    } else if (kind === 'lollipop') {
-      put(g, along(new THREE.CylinderGeometry(0.004, 0.004, 0.15, 6)), mat('#fbf8f4'), 0.04, 0, 0);
-      const candy = put(g, new THREE.CylinderGeometry(0.055, 0.055, 0.016, 24), [mat('#ff6f91'), new THREE.MeshLambertMaterial({ map: swirlTexture() }), new THREE.MeshLambertMaterial({ map: swirlTexture() })], 0.16, 0, 0);
-      candy.rotation.y = 0.2;
-    } else if (kind === 'bouquet') {
-      put(g, along(new THREE.ConeGeometry(0.065, 0.17, 18)).rotateZ(Math.PI), mat('#f6c3d5', { side: THREE.DoubleSide }), 0.06, 0, 0);
-      const colours = ['#ff6f91', '#fff3c4', '#ffffff', '#d62b4b', '#b48be0'];
-      [[0.16, 0, 0], [0.15, 0.035, 0.02], [0.15, -0.035, 0.02], [0.15, 0.01, -0.035], [0.14, -0.02, 0.04]].forEach(([x, y, z], i) => put(g, new THREE.IcosahedronGeometry(0.03, 1), mat(colours[i]), x, y, z));
-      put(g, sphere(0.02, 8, 6), mat('#4f9a48'), 0.13, 0.05, -0.02).scale.set(1.6, 0.5, 0.8);
-    } else if (kind === 'book') {
-      put(g, new THREE.BoxGeometry(0.17, 0.12, 0.032), m.extra, 0.05, -0.03, 0);
-      put(g, new THREE.BoxGeometry(0.16, 0.11, 0.034), mat('#fbf8f4'), 0.05, -0.034, 0);
-    }
-    a.held = { object: g, carry: true };
+    const leaf = put(g, sphere(0.02, 10, 6), mat('#4f9a48'), 0.07, 0.02, 0);
+    leaf.scale.set(1.8, 0.5, 0.8);
+  } else if (kind === 'icecream') {
+    put(g, along(new THREE.ConeGeometry(0.036, 0.11, 16)).rotateZ(Math.PI), mat('#d9a066'), 0.035, 0, 0);
+    put(g, sphere(0.04, 16, 12), mat('#ff9eb5'), 0.1, 0, 0);
+    put(g, sphere(0.034, 16, 12), mat('#fff3d6'), 0.145, 0, 0);
+    put(g, sphere(0.012, 8, 6), mat('#d62b4b'), 0.18, 0, 0);
+  } else if (kind === 'coffee') {
+    put(g, along(new THREE.CylinderGeometry(0.036, 0.03, 0.11, 18)), mat('#fbf8f4'), 0.03, 0, 0);
+    put(g, along(new THREE.CylinderGeometry(0.038, 0.038, 0.015, 18)), mat('#6b4423'), 0.09, 0, 0);
+    put(g, along(new THREE.CylinderGeometry(0.037, 0.034, 0.04, 18)), mat('#c49a6c'), 0.035, 0, 0);
+  } else if (kind === 'lollipop') {
+    put(g, along(new THREE.CylinderGeometry(0.004, 0.004, 0.15, 6)), mat('#fbf8f4'), 0.04, 0, 0);
+    const candy = put(g, new THREE.CylinderGeometry(0.055, 0.055, 0.016, 24), [mat('#ff6f91'), new THREE.MeshLambertMaterial({ map: swirlTexture() }), new THREE.MeshLambertMaterial({ map: swirlTexture() })], 0.16, 0, 0);
+    candy.rotation.y = 0.2;
+  } else if (kind === 'bouquet') {
+    put(g, along(new THREE.ConeGeometry(0.065, 0.17, 18)).rotateZ(Math.PI), mat('#f6c3d5', { side: THREE.DoubleSide }), 0.06, 0, 0);
+    const colours = ['#ff6f91', '#fff3c4', '#ffffff', '#d62b4b', '#b48be0'];
+    [[0.16, 0, 0], [0.15, 0.035, 0.02], [0.15, -0.035, 0.02], [0.15, 0.01, -0.035], [0.14, -0.02, 0.04]].forEach(([x, y, z], i) => put(g, new THREE.IcosahedronGeometry(0.03, 1), mat(colours[i]), x, y, z));
+    put(g, sphere(0.02, 8, 6), mat('#4f9a48'), 0.13, 0.05, -0.02).scale.set(1.6, 0.5, 0.8);
+  } else if (kind === 'book') {
+    put(g, new THREE.BoxGeometry(0.17, 0.12, 0.032), m.extra, 0.05, -0.03, 0);
+    put(g, new THREE.BoxGeometry(0.16, 0.11, 0.034), mat('#fbf8f4'), 0.05, -0.034, 0);
   }
-  a.hands[1].add(g);
+  return g;
 }
 
 // ── Textures ─────────────────────────────────────────────────────────────

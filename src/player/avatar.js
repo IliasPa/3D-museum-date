@@ -77,7 +77,7 @@ const FINGERS = ['t', 'i', 'm', 'r', 'p']; // thumb, index, middle, ring, pinky
  */
 export function restPose() {
   const p = {
-    rigY: 0, rigZ: 0, rigRX: 0, rigRY: 0, rigRZ: 0, rigPivot: 0,
+    rigX: 0, rigY: 0, rigZ: 0, rigRX: 0, rigRY: 0, rigRZ: 0, rigPivot: 0,
     bodyY: 0, bodyRX: 0, bodyRY: 0, bodyRZ: 0,
     headRX: 0, headRY: 0, headRZ: 0,
     handRX: -0.28, handRY: 0.36, handRZ: 0.02, handLX: 0.28, handLY: 0.36, handLZ: 0.02,
@@ -375,6 +375,32 @@ export class ProceduralAvatar {
       obj.scale.set(1.3, 1, 0.5);
       obj.position.set(0, -0.08, 0.34);
       this.head.add(obj);
+    } else if (name === 'ringBox') {
+      obj = ringBox(this.ring ?? {});
+      obj.position.set(0, 0.665, 0.37); // held up in both hands (coupleEmotes.js → propose)
+      this.body.add(obj);
+    } else if (name === 'phoneL' || name === 'phoneR') {
+      obj = new THREE.Group();
+      const phone = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.13, 0.012), mat('#2b2b33'));
+      phone.position.set(0, -0.09, 0.03);
+      const screen = new THREE.Mesh(new THREE.PlaneGeometry(0.06, 0.115), new THREE.MeshBasicMaterial({ color: '#9fd3ff' }));
+      screen.position.set(0, -0.09, 0.0365);
+      obj.add(phone, screen);
+      this.hands[name === 'phoneL' ? 1 : 0].add(obj);
+    } else if (/^(rose|ice)[LR]$/.test(name)) {
+      // Held in the hand on that side (L = +x); in the right hand it points the other way.
+      const side = name.endsWith('L') ? 1 : 0;
+      obj = parts.handItem(name.startsWith('rose') ? 'rose' : 'icecream', this.mats);
+      if (side === 0) obj.rotation.y = Math.PI;
+      this.hands[side].add(obj);
+    } else if (name === 'heartL' || name === 'heartR') {
+      // Half of a heart made together: it glows between the two of you.
+      obj = new THREE.Mesh(
+        new THREE.ExtrudeGeometry(heartShape(0.09), { depth: 0.02, bevelEnabled: true, bevelThickness: 0.008, bevelSize: 0.008, bevelSegments: 2 }).center(),
+        new THREE.MeshBasicMaterial({ color: '#ff5c8a', toneMapped: false }),
+      );
+      obj.position.set(name === 'heartL' ? 0.25 : -0.25, 0.9, 0.3);
+      this.body.add(obj);
     }
     obj.visible = false;
     this.props[name] = obj;
@@ -451,7 +477,7 @@ export class ProceduralAvatar {
 
     // Action on top, blended in and out by the emote player.
     const busy = action && action.weight > 0.3;
-    const showProps = busy ? action.def.props ?? [] : [];
+    const showProps = busy ? action.props ?? action.def.props ?? [] : [];
     if (action && action.weight > 0) {
       const target = action.pose;
       const k = action.weight;
@@ -471,7 +497,7 @@ export class ProceduralAvatar {
   }
 
   #apply(p, dt) {
-    this.rig.position.set(0, p.rigY + p.rigPivot, p.rigZ);
+    this.rig.position.set(p.rigX, p.rigY + p.rigPivot, p.rigZ);
     this.rig.rotation.set(p.rigRX, p.rigRY, p.rigRZ, 'YXZ');
     this.rigInner.position.y = -p.rigPivot;
     this.body.position.y = p.bodyY;
@@ -577,4 +603,32 @@ export class ProceduralAvatar {
     const qFore = qS.clone().multiply(this.elbows[side].quaternion);
     this.hands[side].quaternion.copy(qFore.invert().multiply(qHand));
   }
+}
+
+/**
+ * A little velvet ring box with its lid (opens during the proposal) and a
+ * ring with a stone. `ring`: { metal: 'gold' | 'rose' | 'silver', gem: colour }.
+ */
+function ringBox({ metal = 'gold', gem = '#e8f4ff' }) {
+  const box = new THREE.Group();
+  const velvet = new THREE.MeshLambertMaterial({ color: '#8e1530' });
+  const base = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.05, 0.08), velvet);
+  base.position.y = 0.025;
+  const cushion = new THREE.Mesh(new THREE.BoxGeometry(0.075, 0.012, 0.065), new THREE.MeshLambertMaterial({ color: '#f4e9de' }));
+  cushion.position.y = 0.052;
+  const metals = { gold: '#e0b84c', rose: '#e8a48a', silver: '#e6e8ee' };
+  const shine = new THREE.MeshPhongMaterial({ color: metals[metal] ?? metals.gold, shininess: 120, specular: '#ffffff' });
+  const band = new THREE.Mesh(new THREE.TorusGeometry(0.02, 0.0045, 8, 24), shine);
+  band.position.set(0, 0.075, 0);
+  const stone = new THREE.Mesh(new THREE.OctahedronGeometry(0.011, 0), new THREE.MeshPhongMaterial({ color: gem, shininess: 160, specular: '#ffffff', emissive: gem, emissiveIntensity: 0.25 }));
+  stone.position.set(0, 0.099, 0);
+  // The lid hinges at the back edge.
+  const hinge = new THREE.Group();
+  hinge.position.set(0, 0.05, -0.04);
+  const lid = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.03, 0.08), velvet);
+  lid.position.set(0, 0.015, 0.04);
+  hinge.add(lid);
+  box.add(base, cushion, band, stone, hinge);
+  box.userData.lid = hinge;
+  return box;
 }

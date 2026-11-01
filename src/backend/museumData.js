@@ -38,18 +38,21 @@ export async function isGuestOf(user, museumId) {
 }
 
 /**
- * A museum's settings + its photos and videos (in walking order). Each photo
- * has a `url(size)` function: 'md' for the wall, 'lg' for full screen. Each
- * video has `posterUrl` (a promise) and `url()` (downloads the film).
+ * A museum's settings + its photos and videos (in walking order) and the
+ * mirror's pictures. Each photo has a `url(size)` function: 'md' for the wall,
+ * 'lg' for full screen. Each video has `posterUrl` (a promise) and `url()`
+ * (downloads the film).
  */
 export async function loadMuseum(museumId) {
   const { db, fs } = await getFirestoreDb();
-  const [museumSnap, photoSnap, videoSnap] = await Promise.all([
+  const [museumSnap, photoSnap, videoSnap, mirrorSnap] = await Promise.all([
     fs.getDoc(fs.doc(db, 'museums', museumId)),
     fs.getDocs(fs.query(fs.collection(db, 'museums', museumId, 'photos'), fs.orderBy('order'))),
     fs.getDocs(fs.query(fs.collection(db, 'museums', museumId, 'videos'), fs.orderBy('order'))),
+    fs.getDocs(fs.query(fs.collection(db, 'museums', museumId, 'mirror'), fs.orderBy('order'))).catch(() => null),
   ]);
   if (!museumSnap.exists()) throw new Error('This museum no longer exists.');
+  const thumbs = {};
   const photos = photoSnap.docs.map((d) => {
     const p = d.data();
     return {
@@ -62,7 +65,11 @@ export async function loadMuseum(museumId) {
       width: p.width,
       height: p.height,
       color: p.color,
+      lat: p.lat ?? null, // where it was taken (memory map)
+      lng: p.lng ?? null,
+      place: p.place ?? '',
       url: (size) => imageUrl(museumId, d.id, size),
+      thumbUrl: () => (p.thumb ? (thumbs[d.id] ??= URL.createObjectURL(new Blob([p.thumb.toUint8Array()], { type: 'image/jpeg' }))) : null), // the simple gallery
     };
   });
   const videos = videoSnap.docs.map((d) => {
@@ -70,6 +77,7 @@ export async function loadMuseum(museumId) {
     return {
       id: d.id,
       room: v.room ?? 1,
+      bench: v.bench, // which bench it hangs in front of (layout.js)
       title: v.title ?? '',
       caption: v.caption ?? '',
       width: v.width,
@@ -79,7 +87,12 @@ export async function loadMuseum(museumId) {
       url: () => videoUrl(museumId, d.id, v),
     };
   });
-  return { id: museumId, data: museumSnap.data(), photos, videos };
+  // The mirror's pictures: `for` = the guest who sees it ('' = everyone else).
+  const mirror = (mirrorSnap?.docs ?? []).map((d) => {
+    const m = d.data();
+    return { id: d.id, for: m.for ?? '', width: m.width, height: m.height, url: (size) => imageUrl(museumId, d.id, size) };
+  });
+  return { id: museumId, data: museumSnap.data(), photos, videos, mirror };
 }
 
 /** Object URL for a video (stored in < 1 MB pieces); downloaded once, then reused. */

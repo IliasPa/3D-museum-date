@@ -25,6 +25,11 @@
       "collectionGroup": "videos",
       "fieldPath": "poster",
       "indexes": []
+    },
+    {
+      "collectionGroup": "mirror",
+      "fieldPath": "thumb",
+      "indexes": []
     }
   ]
 }

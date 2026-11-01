@@ -169,6 +169,8 @@ export function createMapTab(panel, ctx) {
     selected = photo;
     renderList();
     draw();
+    // The map is above the list: bring it into view to click on it.
+    if (photo) canvas.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }
 
   async function setPlace(photo, at, recentre = false) {

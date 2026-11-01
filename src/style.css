@@ -883,7 +883,7 @@ button {
 
 .hud-hint {
   position: absolute;
-  top: calc(var(--safe-top) + 96px);
+  top: calc(var(--safe-top) + 128px);
   left: 50%;
   transform: translateX(-50%);
   max-width: calc(100vw - 32px);
@@ -899,6 +899,601 @@ button {
 
 .hud-hint.show {
   opacity: 1;
+}
+
+/* The 💍 button (only for the one who proposes): under the top-right buttons. */
+.hud-ring {
+  position: absolute;
+  top: calc(var(--safe-top) + 64px);
+  right: calc(var(--safe-right) + 12px);
+  width: 46px;
+  height: 46px;
+  border: 0;
+  border-radius: 50%;
+  background: linear-gradient(160deg, #fff6e0, #f3d58c);
+  font-size: 1.4rem;
+  line-height: 1;
+  box-shadow: 0 4px 16px rgba(120, 80, 10, 0.3);
+  pointer-events: auto;
+  animation: ring-glow 2.4s ease-in-out infinite;
+}
+
+@keyframes ring-glow {
+  0%, 100% { box-shadow: 0 4px 16px rgba(120, 80, 10, 0.3); }
+  50% { box-shadow: 0 0 0 6px rgba(243, 213, 140, 0.35), 0 4px 16px rgba(120, 80, 10, 0.3); }
+}
+
+/* The key hunt's count, under "with …". */
+.hud-hunt {
+  position: absolute;
+  top: calc(var(--safe-top) + 90px);
+  left: calc(var(--safe-left) + 12px);
+  padding: 0.35em 0.9em;
+  border-radius: 999px;
+  background: rgba(255, 246, 224, 0.92);
+  color: #6b4423;
+  font-size: 0.85rem;
+  font-weight: 600;
+  box-shadow: 0 4px 14px rgba(40, 20, 20, 0.15);
+}
+
+.hud-hunt.pop {
+  animation: beat 0.6s ease;
+}
+
+.hud-hunt.done {
+  background: linear-gradient(120deg, #ffe8a3, #ffd0da);
+}
+
+/* The guided tour's buttons. */
+.hud-tour {
+  position: absolute;
+  left: calc(var(--safe-left) + 12px);
+  bottom: calc(var(--safe-bottom) + 14px);
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.3rem 0.35rem 0.3rem 0.9rem;
+  border-radius: 999px;
+  background: var(--glass);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 4px 16px rgba(40, 20, 20, 0.15);
+  color: var(--wine);
+  font-size: 0.85rem;
+  font-weight: 600;
+  pointer-events: auto;
+}
+
+.hud-tour button {
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(142, 21, 48, 0.1);
+  color: var(--wine);
+  font-size: 0.95rem;
+  line-height: 1;
+}
+
+/* Offered when the phone struggles with 3D. */
+.hud-simple {
+  position: absolute;
+  left: 50%;
+  bottom: calc(var(--safe-bottom) + 14px);
+  transform: translateX(-50%);
+  padding: 0.6em 1.2em;
+  border: 0;
+  border-radius: 999px;
+  background: var(--wine);
+  color: var(--cream);
+  font-weight: 600;
+  box-shadow: 0 6px 20px rgba(40, 20, 20, 0.3);
+  pointer-events: auto;
+  white-space: nowrap;
+}
+
+/* A quiet moment: the edges soften and darken. */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 9;
+  background: radial-gradient(ellipse at center, transparent 45%, rgba(40, 14, 30, 0.55));
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 1.6s ease;
+}
+
+body.quiet::after {
+  opacity: 1;
+}
+
+/* The camera flash of a bench selfie. */
+.flash {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: #fff;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.flash.go {
+  animation: flash 0.7s ease-out;
+}
+
+@keyframes flash {
+  0% { opacity: 0.95; }
+  100% { opacity: 0; }
+}
+
+.selfie {
+  position: fixed;
+  z-index: 46;
+  right: calc(var(--safe-right) + 14px);
+  bottom: calc(var(--safe-bottom) + 14px);
+  width: min(78vw, 300px);
+  padding: 0.5rem;
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 16px 50px rgba(40, 20, 20, 0.35);
+  opacity: 0;
+  transform: translateY(16px) rotate(-2deg);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.selfie.show {
+  opacity: 1;
+  transform: rotate(-2deg);
+}
+
+.selfie-img {
+  display: block;
+  width: 100%;
+  border-radius: 12px;
+}
+
+.selfie-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.45rem 0.2rem 0.1rem;
+}
+
+.selfie-note {
+  flex: 1;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.selfie-save {
+  padding: 0.45em 1.1em;
+  border: 0;
+  border-radius: 999px;
+  background: var(--wine);
+  color: var(--cream);
+  font-weight: 600;
+}
+
+.selfie-close {
+  width: 32px;
+  height: 32px;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font-size: 1.4rem;
+}
+
+/* ── The proposal ────────────────────────────────────────────── */
+.proposal {
+  position: fixed;
+  inset: 0;
+  z-index: 48;
+  display: grid;
+  place-items: center;
+  padding: calc(var(--safe-top) + 16px) 16px calc(var(--safe-bottom) + 16px);
+  background: radial-gradient(circle at 50% 45%, rgba(255, 240, 246, 0.55), rgba(70, 10, 35, 0.6));
+  opacity: 0;
+  transition: opacity 0.45s ease;
+  overflow: hidden;
+}
+
+.proposal.show {
+  opacity: 1;
+}
+
+.proposal-card {
+  position: relative;
+  z-index: 1;
+  width: min(100%, 560px);
+  padding: 2rem 1.4rem 1.6rem;
+  border: 3px solid #fff;
+  border-radius: 34px;
+  background: rgba(255, 253, 252, 0.92);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 24px 70px rgba(70, 10, 35, 0.35);
+  text-align: center;
+}
+
+.proposal-from {
+  margin: 0;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.proposal-question {
+  margin: 0.2em 0 0;
+  font-family: var(--serif);
+  font-weight: 500;
+  font-size: clamp(2rem, 8vw, 3rem);
+  line-height: 1.1;
+  color: var(--wine);
+  text-shadow: 0 3px 0 #fff, 0 8px 18px rgba(240, 90, 150, 0.25);
+}
+
+/* One message at a time: the old line lifts away before the new one lands. */
+.proposal-taunt {
+  display: grid;
+  place-items: center;
+  min-height: 3.2em;
+  margin: 6px 0 4px;
+  overflow: hidden;
+}
+
+.proposal-taunt .line {
+  grid-area: 1 / 1;
+  font-weight: 600;
+  color: #9a4a6e;
+  animation: line-in 0.4s cubic-bezier(0.22, 0.9, 0.3, 1.2) 0.12s both;
+}
+
+.proposal-taunt .line.out {
+  animation: line-out 0.22s ease forwards;
+  pointer-events: none;
+}
+
+@keyframes line-in {
+  from { opacity: 0; transform: translateY(16px) scale(0.92) rotate(-1.5deg); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes line-out {
+  to { opacity: 0; transform: translateY(-16px) scale(0.92) rotate(1.5deg); }
+}
+
+.proposal-buttons {
+  position: relative;
+  min-height: 170px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  flex-wrap: wrap;
+}
+
+.proposal-yes,
+.proposal-no {
+  border: 0;
+  border-radius: 999px;
+  color: #fff;
+  font-family: var(--sans);
+  font-weight: 600;
+  box-shadow: 0 6px 18px rgba(142, 21, 48, 0.2), inset 0 -4px 0 rgba(0, 0, 0, 0.12);
+}
+
+.proposal-yes {
+  padding: 16px 40px;
+  font-size: 1.3rem;
+  background: linear-gradient(160deg, #ff7aa8, #e0306e);
+  transform-origin: center center;
+  animation: yes-glow 1.8s ease-in-out infinite;
+  will-change: transform;
+}
+
+@keyframes yes-glow {
+  0%, 100% { filter: brightness(1); }
+  50% { filter: brightness(1.12); }
+}
+
+.proposal-slot {
+  width: 132px;
+  height: 54px;
+}
+
+/* The No button swims around the whole screen (proposal.js moves it). */
+.proposal-no {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 3;
+  padding: 14px 28px;
+  font-size: 1.05rem;
+  background: linear-gradient(160deg, #a9c6ff, #7f9dff);
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  will-change: transform;
+}
+
+.proposal-yay {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  justify-items: center;
+  gap: 0.4rem;
+  text-align: center;
+  color: #fff;
+  text-shadow: 0 4px 24px rgba(70, 10, 35, 0.6);
+}
+
+.proposal-ring {
+  font-size: clamp(4rem, 18vw, 7rem);
+  animation: bob 1.4s ease-in-out infinite;
+}
+
+@keyframes bob {
+  0%, 100% { transform: translateY(0) rotate(-4deg); }
+  50% { transform: translateY(-12px) rotate(4deg); }
+}
+
+.proposal-yay h2 {
+  margin: 0;
+  font-family: var(--serif);
+  font-weight: 500;
+  font-size: clamp(2.2rem, 9vw, 3.6rem);
+}
+
+.proposal-yay p {
+  margin: 0;
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 1.3rem;
+}
+
+.proposal-confetti i {
+  position: absolute;
+  top: -3rem;
+  font-style: normal;
+  animation: confetti 4.5s linear forwards;
+}
+
+@keyframes confetti {
+  0% { transform: translateY(0) rotate(0); opacity: 1; }
+  100% { transform: translateY(115vh) rotate(540deg); opacity: 0.6; }
+}
+
+/* ── Keys in the photo viewer (key hunt) ─────────────────────── */
+.lightbox-stage {
+  position: relative;
+}
+
+.lightbox-keys {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.lightbox .lightbox-key {
+  position: absolute;
+  width: 44px;
+  height: 44px;
+  margin: -22px 0 0 -22px;
+  background: none;
+  font-size: 1.3rem;
+  pointer-events: auto;
+  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.5));
+}
+
+.lightbox .lightbox-key:hover {
+  background: none;
+}
+
+.lightbox .lightbox-key.obvious {
+  font-size: 2rem;
+  animation: beat 1.6s ease-in-out infinite;
+}
+
+.lightbox .lightbox-key.found {
+  animation: key-found 0.6s ease forwards;
+}
+
+@keyframes key-found {
+  40% { transform: scale(1.8); opacity: 1; }
+  100% { transform: scale(0.2) translateY(-40px); opacity: 0; }
+}
+
+/* ── The simple gallery (phones too slow for 3D) ─────────────── */
+.gallery {
+  position: fixed;
+  inset: 0;
+  z-index: 35;
+  overflow-y: auto;
+  padding: calc(var(--safe-top) + 24px) calc(var(--safe-right) + 16px) calc(var(--safe-bottom) + 40px) calc(var(--safe-left) + 16px);
+  background: linear-gradient(180deg, #fbefe9, var(--cream) 380px);
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+.gallery > * {
+  max-width: 980px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.gallery-head {
+  margin-bottom: 1.6rem;
+  text-align: center;
+}
+
+.gallery-eyebrow {
+  margin: 0;
+  font-size: 0.75rem;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.gallery-title {
+  margin: 0;
+  font-family: var(--serif);
+  font-weight: 500;
+  font-size: clamp(2.4rem, 10vw, 3.6rem);
+  color: var(--wine);
+}
+
+.gallery-subtitle {
+  margin: 0;
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 1.2rem;
+  color: var(--ink);
+}
+
+.gallery-note,
+.gallery-hunt,
+.gallery-small {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.gallery-hunt:empty {
+  display: none;
+}
+
+.gallery-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--wine);
+  font: inherit;
+  text-decoration: underline;
+}
+
+.gallery-room {
+  margin-bottom: 2rem;
+}
+
+.gallery-room h2 {
+  margin: 0 0 0.6rem;
+  font-family: var(--serif);
+  font-weight: 500;
+  font-size: 1.8rem;
+  color: var(--trim, var(--wine));
+}
+
+.gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 0.8rem;
+}
+
+.gallery-tile {
+  position: relative;
+  margin: 0;
+  overflow: hidden;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 6px 18px rgba(142, 21, 48, 0.1);
+  cursor: pointer;
+}
+
+.gallery-tile img,
+.gallery-tile video {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+  background: #f1ebe4;
+}
+
+.gallery-tile figcaption {
+  display: grid;
+  padding: 0.45rem 0.6rem 0.55rem;
+  font-size: 0.8rem;
+}
+
+.gallery-tile figcaption:empty {
+  display: none;
+}
+
+.gallery-tile figcaption strong {
+  font-family: var(--serif);
+  font-size: 1.05rem;
+  font-weight: 500;
+  color: var(--wine);
+}
+
+.gallery-tile figcaption span {
+  color: var(--muted);
+  font-size: 0.7rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+}
+
+.gallery-play {
+  position: absolute;
+  top: 38%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: #fff;
+  font-size: 2.4rem;
+  text-shadow: 0 2px 14px rgba(0, 0, 0, 0.5);
+}
+
+.gallery-map-canvas {
+  display: block;
+  width: 100%;
+  border-radius: 14px;
+}
+
+.gallery-letter {
+  padding: 2.2rem 1.6rem 1.8rem;
+  border: 1px solid var(--gold);
+  border-radius: 6px;
+  background: linear-gradient(160deg, #fffaf2, #f6e9d8);
+  box-shadow: 0 16px 50px rgba(30, 5, 15, 0.15);
+  text-align: center;
+}
+
+.gallery-letter.locked {
+  color: var(--muted);
+}
+
+.gallery-letter h2 {
+  margin: 0;
+  font-family: var(--serif);
+  font-weight: 500;
+  font-size: 2rem;
+  color: var(--wine);
+}
+
+.gallery-lock {
+  margin: 0;
+  font-size: 2rem;
+}
+
+.gallery-end {
+  margin-top: 1.6rem;
+  color: var(--rose);
+  text-align: center;
+}
+
+/* Reduced motion (the guest's setting, or the phone's): no floating, pulsing things. */
+.reduce-motion .start-hearts,
+.reduce-motion .letter-heart,
+.reduce-motion .hud-ring,
+.reduce-motion .proposal-yes,
+.reduce-motion .proposal-ring,
+.reduce-motion .proposal-confetti {
+  animation: none !important;
+}
+
+.reduce-motion .proposal-confetti {
+  display: none;
 }
 
 /* While a photo is open full-screen, hide the game overlay. */

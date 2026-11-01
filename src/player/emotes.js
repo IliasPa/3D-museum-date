@@ -10,99 +10,12 @@
  * your avatar and the other person's, so both screens show the same thing.
  */
 import * as THREE from 'three';
-import { BODY } from './avatar.js';
-
-// ── Little animation helpers ─────────────────────────────────────────
-const clamp = (x, a = 0, b = 1) => Math.max(a, Math.min(b, x));
-const smooth = (x) => x * x * (3 - 2 * x);
-/** 0 → 1 between times a and b (eased). */
-const ramp = (t, a, b) => smooth(clamp((t - a) / (b - a)));
-/** Up between a→b, down between c→d. */
-const pulse = (t, a, b, c, d) => ramp(t, a, b) * (1 - ramp(t, c, d));
-const lerp = (a, b, k) => a + (b - a) * k;
-/** An angle folded back into −π…π (so a full flip ends at 0, not −2π). */
-const wrap = (a) => Math.atan2(Math.sin(a), Math.cos(a));
-const TAU = Math.PI * 2;
-
-// ── Legs and lying down ──────────────────────────────────────────────
-/** How far the hips drop when the thighs swing forward by `leg` and the knees bend by `knee` — lower the body by this and the feet stay on the floor. */
-const legDrop = (leg, knee) => BODY.thigh * (1 - Math.cos(leg)) + BODY.shin * (1 - Math.cos(leg - knee));
-/** Lying on the back: reclined a little, so the big head rests on the floor like a pillow while the heels touch it too. */
-const ON_BACK = { rigRX: -(Math.PI / 2 - 0.28), rigY: 0.06 };
-
-// ── Hands ────────────────────────────────────────────────────────────
-/** Finger curls (0 straight … 1 fist) for each gesture; v = ✌️ spread. */
-const GESTURES = {
-  relaxed: { t: 0.2, i: 0.3, m: 0.3, r: 0.3, p: 0.3, v: 0 },
-  open: { t: 0, i: 0, m: 0, r: 0, p: 0, v: 0.25 },
-  fist: { t: 0.75, i: 1, m: 1, r: 1, p: 1, v: 0 },
-  point: { t: 0.7, i: 0, m: 1, r: 1, p: 1, v: 0 },
-  peace: { t: 0.8, i: 0, m: 0, r: 1, p: 1, v: 1 },
-  paw: { t: 0.5, i: 0.7, m: 0.7, r: 0.7, p: 0.7, v: 0 },
-  pinch: { t: 0.5, i: 0.3, m: 0.4, r: 0.85, p: 0.9, v: 0 },
-  cup: { t: 0.25, i: 0.25, m: 0.25, r: 0.25, p: 0.25, v: 0 },
-  claw: { t: 0.3, i: 0.45, m: 0.45, r: 0.45, p: 0.45, v: 0.3 },
-  heart: { t: 0, i: 0.55, m: 0.6, r: 0.65, p: 0.7, v: 0, o: 1 }, // o: thumbs turned down
-};
-/** Fingers wiggling (tickling). */
-const wiggle = (t) => ({ t: 0.4, i: 0.5 + 0.5 * Math.sin(t * 30), m: 0.5 + 0.5 * Math.sin(t * 30 + 1), r: 0.5 + 0.5 * Math.sin(t * 30 + 2), p: 0.5 + 0.5 * Math.sin(t * 30 + 3), v: 0.2 });
-
-/**
- * One hand: where the palm goes (body space: feet at 0, head ≈ 1.0 high,
- * facing +z, the avatar's right is −x), which way it faces, a gesture
- * (a name from GESTURES or curls like wiggle()) and, optionally, which way
- * the fingers point (the wrist bends; otherwise they follow the forearm).
- */
-function hand(S, [x, y, z], palm, gesture, tip) {
-  const out = { [`hand${S}X`]: x, [`hand${S}Y`]: y, [`hand${S}Z`]: z };
-  if (palm) Object.assign(out, { [`palm${S}X`]: palm[0], [`palm${S}Y`]: palm[1], [`palm${S}Z`]: palm[2] });
-  if (tip) Object.assign(out, { [`tip${S}X`]: tip[0], [`tip${S}Y`]: tip[1], [`tip${S}Z`]: tip[2], [`tip${S}W`]: 1 });
-  const g = typeof gesture === 'string' ? GESTURES[gesture] : gesture;
-  if (g) for (const f of ['t', 'i', 'm', 'r', 'p', 'v', 'o']) out[`${S}_${f}`] = g[f] ?? 0;
-  return out;
-}
-/** Right and left hand: each [position, palm, gesture, fingertips]. */
-const hands = (r, l) => ({ ...hand('R', ...r), ...hand('L', ...l) });
-const mirror = (v) => v && [-v[0], v[1], v[2]];
-/** Both hands mirrored: give the LEFT hand's position/palm/fingertips, the right one copies it. */
-const both = ([x, y, z], palm, gesture, tip) => hands(
-  [[-x, y, z], mirror(palm), gesture, mirror(tip)],
-  [[x, y, z], palm, gesture, tip],
-);
-// Palm directions (for the left hand; `both` mirrors them).
-const FORWARD = [0, 0, 1];
-const TO_ME = [0, 0, -1];
-const DOWN = [0, -1, 0];
-const UP = [0, 1, 0];
-const INWARD = [-1, 0, 0];
-
-// ── Effect helpers ───────────────────────────────────────────────────
-const tmp = new THREE.Vector3();
-function bubble(ctx, content, duration) {
-  ctx.fx.bubble(ctx.avatar.head ?? ctx.avatar.root, content, duration);
-}
-function headPos(ctx) {
-  return (ctx.avatar.head ?? ctx.avatar.root).getWorldPosition(new THREE.Vector3());
-}
-/** Run `fn` every `period` seconds while an action plays. */
-function every(period, fn) {
-  return (t, dt, ctx, state) => {
-    state.next ??= 0;
-    if (t >= state.next) {
-      state.next = t + period;
-      fn(ctx, t);
-    }
-  };
-}
-function once(at, fn) {
-  return (t, dt, ctx, state) => {
-    state.done ??= new Set();
-    if (t >= at && !state.done.has(at)) {
-      state.done.add(at);
-      fn(ctx, t);
-    }
-  };
-}
+import { restPose } from './avatar.js';
+import { COUPLE_EMOTES, COUPLE_REACTIONS, SEAT } from './coupleEmotes.js';
+import {
+  clamp, smooth, ramp, pulse, lerp, wrap, TAU, legDrop, ON_BACK, wiggle, hand, hands, both,
+  FORWARD, TO_ME, DOWN, UP, INWARD, tmp, bubble, headPos, every, once,
+} from './poseKit.js';
 
 // ── The actions ──────────────────────────────────────────────────────
 /*
@@ -382,9 +295,9 @@ export const EMOTES = {
     }),
   },
   S: {
-    label: 'Sit', emoji: '🪑', loop: true, needsBench: true,
+    label: 'Sit', emoji: '🪑', loop: true, needsBench: true, seated: true,
     // Hips on the seat (0.5 m), thighs forward, shins hanging down.
-    pose: () => ({ rigY: 0.14, legRF: 1.45, legLF: 1.45, kneeR: 1.45, kneeL: 1.45, ...both([0.12, 0.49, 0.26], DOWN, 'relaxed'), bodyRX: -0.04 }),
+    pose: () => ({ ...SEAT, ...both([0.12, 0.49, 0.26], DOWN, 'relaxed') }),
   },
   T: {
     label: 'Tickle', emoji: '😈', duration: 2.4, lock: true, needsPartner: true,
@@ -467,13 +380,18 @@ export const EMOTES = {
     }),
   },
 };
+Object.assign(EMOTES, COUPLE_EMOTES); // twirl & dance, the bench actions, the proposal (coupleEmotes.js)
 for (const [id, def] of Object.entries(EMOTES)) def.id = id;
 
 /** The 26 keys in the action menu (A … Z). */
 export const MENU = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
 
 /** Who reacts how when an action targets them. */
-export const REACTIONS = { H: 'hugged', T: 'tickled', K: 'kissed' };
+export const REACTIONS = { H: 'hugged', T: 'tickled', K: 'kissed', ...COUPLE_REACTIONS };
+
+export { BENCH_MENU } from './coupleEmotes.js';
+
+const BLEND = 0.3; // seconds to glide from one action into the next
 
 function hugPose(t) {
   const inn = ramp(t, 0, 0.4);
@@ -506,7 +424,20 @@ export class EmotePlayer {
   constructor() {
     this.current = null;
     this.weight = 0;
+    this.lastPose = null;
     this.onEnd = () => {};
+    this.next = () => null; // (def) => id of an action to go straight into when `def` ends (e.g. back to sitting)
+    this.onChain = () => {}; // (id) — it went straight into that one
+  }
+
+  /** Seconds since the current action started (0 if none). */
+  get time() {
+    return this.current && !this.current.stopping ? this.current.t : 0;
+  }
+
+  /** Who the current action is aimed at (a uid), if anyone. */
+  get target() {
+    return this.current && !this.current.stopping ? this.current.target : null;
   }
 
   get id() {
@@ -530,7 +461,9 @@ export class EmotePlayer {
       this.stop();
       return true;
     }
-    this.current = { def, t: 0, target, started: false, state: {} };
+    // Glide from wherever the last action left the body (no sudden jumps between actions).
+    const from = this.current && this.weight > 0.05 && this.lastPose ? this.lastPose : null;
+    this.current = { def, t: 0, target, started: false, state: {}, from };
     return true;
   }
 
@@ -550,6 +483,15 @@ export class EmotePlayer {
       c.started = true;
       c.def.start?.(ctx);
     }
+    if (!c.stopping && !c.def.loop && c.t >= c.def.duration) {
+      // Some actions flow straight into another (a bench action back into sitting).
+      const next = this.next(c.def);
+      if (next && EMOTES[next]) {
+        this.play(next, { target: null });
+        this.onChain(next);
+        return this.update(0, ctx, moving);
+      }
+    }
     if (!c.stopping && ((moving && c.def.cancelOnMove) || (!c.def.loop && c.t >= c.def.duration))) c.stopping = true;
     const goal = c.stopping ? 0 : 1;
     this.weight += (goal - this.weight) * Math.min(1, dt * (c.stopping ? 6 : 10));
@@ -562,6 +504,24 @@ export class EmotePlayer {
     if (!c.stopping) c.def.tick?.(c.t, dt, ctx, c.state);
     // After a one-shot action ends, hold its last pose while it fades out (no rewinding).
     const t = c.def.loop ? c.t : Math.min(c.t, c.def.duration);
-    return { def: c.def, pose: c.def.pose(t, ctx) ?? {}, weight: this.weight };
+    let pose = c.def.pose(t, ctx) ?? {};
+    if (c.from) {
+      const k = smooth(clamp(c.t / BLEND));
+      if (k < 1) pose = mixPoses(c.from, pose, k);
+      else c.from = null;
+    }
+    this.lastPose = pose;
+    const props = typeof c.def.props === 'function' ? c.def.props(t, ctx) : c.def.props;
+    return { def: c.def, pose, weight: this.weight, t, props };
   }
+}
+
+/** A pose part-way between two poses (values missing from one come from the resting pose). */
+const REST = restPose();
+function mixPoses(a, b, k) {
+  const out = {};
+  for (const key of new Set([...Object.keys(a), ...Object.keys(b)])) {
+    out[key] = lerp(a[key] ?? REST[key] ?? 0, b[key] ?? REST[key] ?? 0, k);
+  }
+  return out;
 }

@@ -72,6 +72,21 @@ export class Music {
     if (this.started && !this.muted && this.available) this.#play(true);
   }
 
+  /** A quiet moment: the music softens to a whisper (and comes back after). */
+  soften(on) {
+    this.soft = on;
+    const from = this.audio.volume;
+    const to = this.volume * (on ? 0.3 : 1);
+    const startTime = performance.now();
+    const step = () => {
+      if (this.soft !== on) return;
+      const t = Math.min(1, (performance.now() - startTime) / 1800);
+      this.audio.volume = from + (to - from) * t;
+      if (t < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  }
+
   toggleMute() {
     this.muted = !this.muted;
     try {

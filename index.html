@@ -83,14 +83,23 @@
       <button class="hud-heart" type="button" aria-label="Send hearts">♥</button>
       <button class="hud-actions" type="button" aria-label="Actions" aria-expanded="false">😊</button>
       <button class="hud-wardrobe" type="button" aria-label="Wardrobe: change your look" title="Wardrobe">👕</button>
+      <button class="hud-ring" type="button" aria-label="Propose" title="Propose 💍" hidden>💍</button>
+      <div class="hud-hunt" hidden></div>
+      <div class="hud-tour" hidden>
+        <span class="hud-tour-text">Guided tour</span>
+        <button type="button" data-tour="toggle" aria-label="Pause the tour">⏸</button>
+        <button type="button" data-tour="next" aria-label="Next photo">⏭</button>
+        <button type="button" data-tour="stop" aria-label="End the tour">✕</button>
+      </div>
       <div class="actions-panel" hidden>
-        <p class="actions-title">Actions <span>· or press the letter on your keyboard</span></p>
+        <p class="actions-title"><span class="actions-name">Actions</span> <span>· or press the letter on your keyboard</span></p>
         <div class="actions-grid"></div>
       </div>
       <button class="hud-mute" type="button" aria-label="Mute music" hidden>
         <svg class="icon-on" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
         <svg class="icon-off" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M17 9.5l5 5m0-5l-5 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
       </button>
+      <button class="hud-simple" type="button" hidden>Too slow? Switch to the simple gallery</button>
       <div class="hud-toast" aria-live="polite"></div>
       <div class="hud-hint"></div>
     </div>
@@ -136,6 +145,40 @@
         <button class="wardrobe-done" type="button">Done</button>
       </div>
     </div>
+
+    <!-- The proposal: the question, a YES that grows and a No that swims away -->
+    <div id="proposal" class="proposal" hidden>
+      <div class="proposal-confetti" aria-hidden="true"></div>
+      <section class="proposal-card" role="dialog" aria-modal="true" aria-label="A question">
+        <p class="proposal-from"></p>
+        <h2 class="proposal-question"></h2>
+        <div class="proposal-taunt" aria-live="polite"></div>
+        <div class="proposal-buttons">
+          <button class="proposal-yes" type="button">YES</button>
+          <div class="proposal-slot" aria-hidden="true"></div>
+        </div>
+      </section>
+      <div class="proposal-yay" role="status" hidden>
+        <span class="proposal-ring">💍</span>
+        <h2></h2>
+        <p></p>
+      </div>
+      <button class="proposal-no" type="button">No</button>
+    </div>
+
+    <!-- A bench selfie -->
+    <div class="flash" aria-hidden="true"></div>
+    <div id="selfie" class="selfie" hidden>
+      <img class="selfie-img" alt="Your selfie" />
+      <div class="selfie-row">
+        <span class="selfie-note"></span>
+        <button class="selfie-save" type="button">Save</button>
+        <button class="selfie-close" type="button" aria-label="Close">×</button>
+      </div>
+    </div>
+
+    <!-- The simple gallery (phones too slow for 3D) -->
+    <main id="gallery" class="gallery" hidden></main>
 
     <!-- The personal message (last room) -->
     <div id="letter" class="letter" hidden>

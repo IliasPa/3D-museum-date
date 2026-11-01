@@ -5,8 +5,10 @@
  * iPhone, Android and Windows alike.
  */
 import * as THREE from 'three';
+import { radialGlowTexture } from './textures.js';
 
 const textures = new Map();
+const FIREWORK_COLOURS = ['#ff5c8a', '#ffd166', '#7bdff2', '#b8f2a6', '#ffffff', '#c792ea', '#ff9e5e'].map((c) => new THREE.Color(c));
 
 /** A canvas texture of an emoji, or of a short text in a speech bubble. */
 function labelTexture(content) {
@@ -103,11 +105,63 @@ export class Effects {
     this.items.push({ sprite: group, bands, kind: 'rainbow', age: 0, life: 3.4 });
   }
 
+  /**
+   * Fireworks (small ones — we're indoors): a few bursts of sparks under the
+   * ceiling above `pos`, one after another.
+   */
+  fireworks(pos, { reducedMotion = false } = {}) {
+    const count = reducedMotion ? 2 : 7;
+    for (let i = 0; i < count; i++) {
+      this.items.push({
+        kind: 'pending', age: -i * 0.45 - Math.random() * 0.2, life: 0,
+        at: new THREE.Vector3(pos.x + (Math.random() - 0.5) * 3, 2.7 + Math.random() * 0.9, pos.z + (Math.random() - 0.5) * 3),
+        reducedMotion,
+      });
+    }
+  }
+
+  #burst(at, reducedMotion) {
+    const n = reducedMotion ? 30 : 70;
+    const colour = FIREWORK_COLOURS[Math.floor(Math.random() * FIREWORK_COLOURS.length)];
+    const second = FIREWORK_COLOURS[Math.floor(Math.random() * FIREWORK_COLOURS.length)];
+    const positions = new Float32Array(n * 3);
+    const colours = new Float32Array(n * 3);
+    const velocities = [];
+    for (let i = 0; i < n; i++) {
+      // Evenly spread directions on a sphere, slightly random speeds.
+      const y = 1 - (2 * (i + 0.5)) / n;
+      const r = Math.sqrt(1 - y * y);
+      const a = i * 2.39996;
+      const speed = (reducedMotion ? 0.9 : 1.5) * (0.85 + Math.random() * 0.3);
+      velocities.push(new THREE.Vector3(Math.cos(a) * r * speed, y * speed, Math.sin(a) * r * speed));
+      positions.set([at.x, at.y, at.z], i * 3);
+      (i % 3 ? colour : second).toArray(colours, i * 3);
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    geo.setAttribute('color', new THREE.BufferAttribute(colours, 3));
+    const points = new THREE.Points(geo, new THREE.PointsMaterial({
+      size: 0.12, map: radialGlowTexture(), vertexColors: true, transparent: true, depthWrite: false,
+      blending: THREE.AdditiveBlending, toneMapped: false,
+    }));
+    points.frustumCulled = false;
+    points.renderOrder = 6;
+    this.scene.add(points);
+    this.items.push({ sprite: points, kind: 'burst', age: 0, life: 1.6, velocities, origin: at.clone() });
+  }
+
   update(dt) {
     const tmp = new THREE.Vector3();
     for (let i = this.items.length - 1; i >= 0; i--) {
       const it = this.items[i];
       it.age += dt;
+      if (it.kind === 'pending') {
+        if (it.age >= 0) {
+          this.items.splice(i, 1);
+          this.#burst(it.at, it.reducedMotion);
+        }
+        continue;
+      }
       const t = it.age / it.life;
       if (t >= 1) {
         this.scene.remove(it.sprite);
@@ -128,6 +182,16 @@ export class Effects {
         it.v.y -= it.gravity * dt;
         it.sprite.position.addScaledVector(it.v, dt);
         it.sprite.material.opacity = Math.min(1, (1 - t) * 3, it.age * 8);
+      } else if (it.kind === 'burst') {
+        // Sparks fly out, slow down, droop and fade.
+        const pos = it.sprite.geometry.attributes.position;
+        const travel = 1 - Math.exp(-it.age * 2.2);
+        it.velocities.forEach((v, k) => {
+          pos.setXYZ(k, it.origin.x + v.x * travel, it.origin.y + v.y * travel - 0.6 * it.age * it.age, it.origin.z + v.z * travel);
+        });
+        pos.needsUpdate = true;
+        it.sprite.material.opacity = Math.min(1, (1 - t) * 2.2);
+        it.sprite.material.size = 0.12 * (1 - 0.4 * t);
       } else if (it.kind === 'rainbow') {
         const easeOut = (x) => 1 - (1 - Math.min(1, x)) ** 3;
         const drawn = Math.ceil(easeOut(it.age / 0.55) * (RAINBOW_SEGMENTS / 2));

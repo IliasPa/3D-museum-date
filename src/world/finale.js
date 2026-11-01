@@ -1,11 +1,14 @@
 /**
  * The hidden last room: a red curtain that parts as you walk up, a glowing
  * heart on a pedestal, floating hearts, fairy lights, and your message
- * framed on the wall.
+ * framed on the wall. With a memory map, the map table stands in the middle
+ * and the heart moves back towards the letter. During a key hunt the curtain
+ * can stay closed (locked) until every key is found.
  */
 import * as THREE from 'three';
 import { WALL_HEIGHT as H } from './layout.js';
-import { radialGlowTexture, wrapText, seededRandom } from './textures.js';
+import { radialGlowTexture, wrapText, seededRandom, textTexture } from './textures.js';
+import { mapTableSpot } from './mapTable.js';
 
 const HEART_COUNT = 46;
 const NEAR_DISTANCE = 3.0; // walk this close to the heart to read the letter
@@ -23,22 +26,28 @@ export function heartShape(size = 1) {
   return shape;
 }
 
-export function buildFinale(plan, finaleConfig, colliders) {
+/**
+ * @param opts { withTable: the memory map table stands in the middle }
+ */
+export function buildFinale(plan, finaleConfig, colliders, { withTable = false } = {}) {
   const room = plan.rooms.find((r) => r.isFinale);
   const door = plan.doors.find((d) => d.curtain);
   if (!room || !door) return null;
 
   const group = new THREE.Group();
   group.name = 'finale';
-  const center = new THREE.Vector3(room.cx, 0, room.cz + 0.6);
+  // The heart: in the middle — or, with the map table there, back near the letter.
+  const center = withTable ? new THREE.Vector3(room.cx, 0, room.z0 + 1.9) : new THREE.Vector3(room.cx, 0, room.cz + 0.6);
+  const nearDistance = withTable ? 1.9 : NEAR_DISTANCE;
 
   // ── Rug ──────────────────────────────────────────────────────────
+  const rugAt = withTable ? mapTableSpot(room) : center;
   const rug = new THREE.Mesh(
     new THREE.CircleGeometry(3.1, 48),
     new THREE.MeshLambertMaterial({ map: rugTexture(), polygonOffset: true, polygonOffsetFactor: -2 }),
   );
   rug.rotation.x = -Math.PI / 2;
-  rug.position.set(center.x, 0.006, center.z);
+  rug.position.set(rugAt.x, 0.006, rugAt.z);
   group.add(rug);
 
   // ── Pedestal + heart sculpture ───────────────────────────────────
@@ -127,6 +136,11 @@ export function buildFinale(plan, finaleConfig, colliders) {
   const curtain = buildCurtain(door);
   group.add(curtain.group);
 
+  // ── Locked (key hunt): a little sign on the curtain, and the doorway blocked ──
+  const blocker = { minX: door.x - door.width / 2, maxX: door.x + door.width / 2, minY: 0, maxY: door.height, minZ: door.zNorthFace, maxZ: door.zSouthFace + 0.2 };
+  let lockSign = null;
+  let locked = false;
+
   // ── Per-frame animation ──────────────────────────────────────────
   let time = 0;
   let near = false;
@@ -137,6 +151,35 @@ export function buildFinale(plan, finaleConfig, colliders) {
   return {
     group,
     room,
+    /** Keep the curtain closed (and say why) until `locked` is false again. */
+    setLocked(next, text = '') {
+      if (next && !locked) colliders.push(blocker);
+      if (!next && locked) colliders.splice(colliders.indexOf(blocker), 1);
+      locked = next;
+      if (lockSign) {
+        group.remove(lockSign);
+        lockSign.material.map?.dispose();
+        lockSign.material.dispose();
+        lockSign.geometry.dispose();
+        lockSign = null;
+      }
+      if (!next) return;
+      lockSign = new THREE.Mesh(
+        new THREE.PlaneGeometry(1.5, 0.42),
+        new THREE.MeshLambertMaterial({
+          transparent: true,
+          map: textTexture([
+            { text: '🔒', font: '72px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif', color: '#f8d7dc', gap: 4 },
+            { text, font: '600 40px Manrope, sans-serif', color: '#fff3d6' },
+          ], { width: 760, height: 220, padding: 10 }),
+        }),
+      );
+      lockSign.position.set(door.x, 1.55, door.zSouthFace + 0.16);
+      group.add(lockSign);
+    },
+    get locked() {
+      return locked;
+    },
     /** Returns true while the avatar is close enough to read the letter. */
     update(dt, avatarPos) {
       time += dt;
@@ -164,10 +207,10 @@ export function buildFinale(plan, finaleConfig, colliders) {
       }
       fairy.instanceColor.needsUpdate = true;
 
-      curtain.update(dt, avatarPos.distanceTo(doorPos) < CURTAIN_OPEN_DISTANCE);
+      curtain.update(dt, !locked && avatarPos.distanceTo(doorPos) < CURTAIN_OPEN_DISTANCE);
 
       const d = Math.hypot(avatarPos.x - center.x, avatarPos.z - center.z);
-      near = near ? d < NEAR_DISTANCE + 0.6 : d < NEAR_DISTANCE; // a little hysteresis
+      near = near ? d < nearDistance + 0.6 : d < nearDistance; // a little hysteresis
       return near;
     },
   };
