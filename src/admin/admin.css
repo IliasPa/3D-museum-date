@@ -251,6 +251,28 @@ textarea {
   min-width: 0;
 }
 
+.rules-warning {
+  margin: 0 0 1rem;
+  padding: 0.8rem 1rem;
+  border-left: 4px solid #b3261e;
+  border-radius: 10px;
+  background: #fde8e6;
+  color: #5c1410;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.rules-warning strong {
+  display: block;
+}
+
+.rules-warning code {
+  padding: 0.1em 0.4em;
+  border-radius: 6px;
+  background: #fff;
+  color: var(--ink);
+}
+
 .editor-head {
   display: flex;
   align-items: flex-start;

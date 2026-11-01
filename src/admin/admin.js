@@ -127,6 +127,7 @@ async function selectMuseum(id) {
   for (const b of $('.museum-list').querySelectorAll('button')) b.setAttribute('aria-current', String(b.dataset.id === id));
   $('.editor').hidden = false;
   $('.editor-title').textContent = state.current.name || state.current.title;
+  checkRules(id);
   if (!state.current.slug) {
     // Museums made before links existed get one now.
     state.current.slug = store.uniqueSlug(state.current.name || state.current.title || 'museum', state.museums, id);
@@ -143,6 +144,16 @@ async function selectMuseum(id) {
   updateUsage();
   renderStats();
   renderTab();
+}
+
+/** Older database rules on Google's servers quietly break the key hunt and the visit records: say so. */
+let rulesOk = null;
+function checkRules(museumId) {
+  if (rulesOk != null) return; // (once it's known; offline → try again with the next museum)
+  store.rulesAreCurrent(museumId).then((ok) => {
+    rulesOk = ok;
+    $('.rules-warning').hidden = ok !== false;
+  });
 }
 
 /** This museum's own address (and the "Walk through" button). */

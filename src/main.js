@@ -231,6 +231,11 @@ async function boot() {
         }
         applyHunt(!first && fresh.length > 0);
         first = false;
+      }, () => {
+        // The database won't share the finds: each of you hunts alone (and isn't told "together").
+        if (visit !== v) return;
+        v.huntLink = null;
+        applyHunt();
       });
     }
     applyHunt();
@@ -423,9 +428,9 @@ async function boot() {
     // The key hunt: a game for the two of you.
     setTimeout(() => {
       const h = visit?.hunt;
-      if (!h?.total || !visit.huntLink || visit.found.size >= h.total) return; // (the curator walking through alone: no)
+      if (!h?.total || !visit.isGuest || visit.found.size >= h.total) return; // (the curator walking through alone: no)
       const left = h.total - visit.found.size;
-      hud.showHint(`${countLabel(config.hunt, left)} ${left === 1 ? 'is' : 'are'} hidden in the photos — find ${left === 1 ? 'it' : 'them'} together ${h.emoji}`, 5500);
+      hud.showHint(`${countLabel(config.hunt, left)} ${left === 1 ? 'is' : 'are'} hidden in the photos — find ${left === 1 ? 'it' : 'them'}${visit.huntLink ? ' together' : ''} ${h.emoji}`, 5500);
     }, settings.tour ? 9000 : 6000);
 
     hud.onEmote = () => {

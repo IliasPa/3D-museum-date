@@ -3,6 +3,12 @@
 What changed in each version of Our Museum. The newest is at the top. Every
 version has a tag and a release on GitHub.
 
+## 2.1.1 — 1 November 2026
+- **Why the keys weren't shared:** the database rules on Google's servers were still the ones from 25 October, from before the key hunt, so every find was refused. Putting this version's rules there fixes it: `npm run deploy:rules`. The same rules save "Last visited", the second clock and the proposal's answer.
+- **The curator page warns** when the rules on Google's servers are older than the site, and says what to run.
+- **The museum no longer says "together"** when the finds can't be shared. Each of you then counts your own, and the start hint says "find them" instead of "find them together".
+- **README:** GitHub's "Google API Key" alert needs no change in the code. Checked again: the key is refused from any other website.
+
 ## 2.1.0 — 1 November 2026
 
 ### In the museum

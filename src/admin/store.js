@@ -328,6 +328,20 @@ export async function listHuntFinds(museumId) {
   return new Map(Object.entries(snap.val() ?? {}));
 }
 
+/**
+ * Whether the database rules on Google's servers are this version's. Older
+ * ones don't know the key hunt, so even the curator can't read its finds.
+ * true, false (→ `npm run deploy:rules`), or null when it can't tell (offline).
+ */
+export async function rulesAreCurrent(museumId) {
+  try {
+    await listHuntFinds(museumId);
+    return true;
+  } catch (err) {
+    return /permission/i.test(`${err.code} ${err.message}`) ? false : null;
+  }
+}
+
 /** Hide every key again (the guests start the hunt from scratch). */
 export async function resetHunt(museumId) {
   const { db, rt } = await getRealtimeDb();

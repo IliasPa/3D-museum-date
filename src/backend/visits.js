@@ -42,12 +42,17 @@ export async function saveYes(museumId, email, dodges) {
 
 /**
  * The key hunt's finds, live: calls `onChange(Map keyId → { by, t })` now and
- * whenever someone finds one. Returns { found(keyId, name), stop() }.
+ * whenever someone finds one, or `onRefused()` if the database won't share
+ * them (its rules are older than this site: `npm run deploy:rules`).
+ * Returns { found(keyId, name), stop() }.
  */
-export async function joinHunt(museumId, onChange) {
+export async function joinHunt(museumId, onChange, onRefused = () => {}) {
   const { db, rt } = await getRealtimeDb();
   const ref = rt.ref(db, `hunt/${museumId}`);
-  const off = rt.onValue(ref, (snap) => onChange(new Map(Object.entries(snap.val() ?? {}))), (err) => console.warn('[hunt]', err.message));
+  const off = rt.onValue(ref, (snap) => onChange(new Map(Object.entries(snap.val() ?? {}))), (err) => {
+    console.warn('[hunt] the finds can’t be shared:', err.message);
+    onRefused();
+  });
   return {
     found: (keyId, name) => rt.set(rt.ref(db, `hunt/${museumId}/${keyId}`), { by: String(name).slice(0, 40), t: rt.serverTimestamp() })
       .catch((err) => console.warn('[hunt] could not save the find:', err.message)),
