@@ -80,6 +80,27 @@ export function bubble(ctx, content, duration) {
 export function headPos(ctx) {
   return (ctx.avatar.head ?? ctx.avatar.root).getWorldPosition(new THREE.Vector3());
 }
+// ── Room between two heads ───────────────────────────────────────────
+// The heads are big (0.6 m across): close together there's only a hand's
+// width between them. Leaning in (a kiss, a cuddle, a head on the shoulder)
+// goes only as far as that room allows — until the heads touch — and when
+// you both lean, each takes a share of it. That keeps two people apart
+// enough to see what they're doing.
+
+/** How far apart we are (centre to centre), or a usual distance on a bench when alone. */
+export const apart = (c) => (c.partner ? Math.hypot(c.partner.position.x - c.position.x, c.partner.position.z - c.position.z) : 0.74);
+
+/** My share of the room between our heads, in metres (alone: plenty). */
+export function room(c, share = 1) {
+  if (!c.partner) return Infinity;
+  const mine = 0.3 * (c.avatar?.head?.scale.x ?? 1);
+  const theirs = c.partner.headRadius ?? mine;
+  return Math.max(0, apart(c) - (mine + theirs) * 0.95) * share; // heads may squeeze a little
+}
+
+/** How much of a lean that moves my head `want` metres towards them fits into my share of the room: 0…1. */
+export const fit = (c, want, share = 1) => Math.min(1, room(c, share) / want);
+
 /** Run `fn` every `period` seconds while an action plays. */
 export function every(period, fn) {
   return (t, dt, ctx, state) => {

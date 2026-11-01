@@ -126,6 +126,27 @@ export function beamTexture() {
   return finish(c, { srgb: false });
 }
 
+/** A round "play" button: a dark disc with a white ▶ (on wall videos). */
+export function playBadgeTexture() {
+  const size = 128;
+  const [c, g] = canvas(size);
+  g.fillStyle = 'rgba(20, 16, 18, 0.62)';
+  g.beginPath();
+  g.arc(64, 64, 60, 0, Math.PI * 2);
+  g.fill();
+  g.strokeStyle = 'rgba(255, 255, 255, 0.9)';
+  g.lineWidth = 5;
+  g.stroke();
+  g.fillStyle = '#ffffff';
+  g.beginPath();
+  g.moveTo(50, 36);
+  g.lineTo(94, 64);
+  g.lineTo(50, 92);
+  g.closePath();
+  g.fill();
+  return finish(c);
+}
+
 /** Splits text into lines that fit maxWidth (keeps the user's own line breaks). */
 export function wrapText(g, text, maxWidth) {
   const lines = [];

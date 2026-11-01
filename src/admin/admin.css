@@ -717,7 +717,7 @@ textarea {
 
 .map-row {
   display: grid;
-  grid-template-columns: 56px minmax(0, 1fr) minmax(9rem, 13rem) auto auto;
+  grid-template-columns: 56px minmax(0, 1fr) minmax(9rem, 12rem) 8.5rem 2.2rem; /* fixed, so every row lines up */
   align-items: center;
   gap: 0.7rem;
   padding: 0.45em 0.6em;
@@ -754,6 +754,11 @@ textarea {
 .map-row input {
   padding: 0.3em 0.6em;
   font-size: 0.85rem;
+}
+
+.map-row .map-pick {
+  justify-content: center;
+  white-space: nowrap;
 }
 
 /* ── Key hunt ── */
@@ -819,20 +824,27 @@ textarea {
 
 .hunt-board > .help {
   max-width: 44rem;
-  margin: 0 7.5rem 0.8rem 0;
+  margin: 0 0 0.8rem;
   font-size: 0.85rem;
+}
+
+/* The settings in the left column, the big key at the top right. */
+.hunt-settings {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.hunt-settings > * {
+  grid-column: 1;
 }
 
 /* The big key: where keys come from and go back to (like a bin). */
 .key-source {
-  position: sticky;
-  top: 4.6rem;
+  position: relative;
   z-index: 3;
-  float: right;
   display: grid;
   justify-items: center;
   width: 6.4rem;
-  margin: 0 0 0.6rem 0.8rem;
+  margin: 0;
   padding: 0.6rem 0.4rem 0.5rem;
   border: 2px dashed rgba(217, 179, 108, 0.9);
   border-radius: 20px;
@@ -843,6 +855,12 @@ textarea {
   user-select: none;
   -webkit-user-select: none;
   transition: transform 0.2s, background 0.2s;
+}
+
+.hunt-settings > .key-source {
+  grid-column: 2;
+  grid-row: 1 / span 4;
+  align-self: start;
 }
 
 .key-source-emoji {
@@ -939,6 +957,23 @@ textarea {
 
 .hunt-key.lifted {
   opacity: 0.25;
+}
+
+/* Found by the guests already: a little tick. */
+.hunt-key.found::after {
+  content: "✓";
+  position: absolute;
+  right: -0.45rem;
+  bottom: -0.3rem;
+  display: grid;
+  place-items: center;
+  width: 0.95rem;
+  height: 0.95rem;
+  border-radius: 50%;
+  background: #2e8b57;
+  color: #fff;
+  font-size: 0.6rem;
+  font-weight: 700;
 }
 
 .zoom .hunt-key {
@@ -1087,7 +1122,8 @@ textarea {
   fill: #c0392b;
 }
 
-.plan-video .plan-badge {
+.plan-video .plan-badge,
+.plan-wall-video .plan-badge {
   fill: #1c1a1b;
 }
 
@@ -1376,9 +1412,5 @@ textarea {
 
   .map-row .map-coords {
     grid-column: 2 / -1;
-  }
-
-  .hunt-board > .help {
-    margin-right: 0;
   }
 }

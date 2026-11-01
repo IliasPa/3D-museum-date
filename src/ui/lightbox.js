@@ -56,12 +56,14 @@ export class Lightbox {
     }, { capture: true });
   }
 
+  /** Open from open() until close() — not until it has faded out (which is only for the eye). */
   get isOpen() {
-    return !this.el.hidden;
+    return Boolean(this.opened);
   }
 
   /** `list`: photo items (from the same room), `index`: which one to show. */
   open(list, index) {
+    this.opened = true;
     this.list = list;
     this.index = index;
     this.#render();
@@ -72,8 +74,10 @@ export class Lightbox {
 
   close() {
     if (!this.isOpen) return;
+    this.opened = false;
     this.el.classList.remove('show');
     setTimeout(() => {
+      if (this.opened) return; // opened again meanwhile
       this.el.hidden = true;
       this.token = (this.token ?? 0) + 1; // ignore photos still on their way
       this.img.removeAttribute('src');

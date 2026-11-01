@@ -18,6 +18,7 @@ import { buildFrames } from './world/frames.js';
 import { buildFinale } from './world/finale.js';
 import { buildDust } from './world/dust.js';
 import { buildScreens, VideoPlayer } from './world/videos.js';
+import { WallVideos } from './world/wallVideos.js';
 import { buildKeys } from './world/keys.js';
 import { buildClocks } from './world/clocks.js';
 import { buildDecorations } from './world/decorations.js';
@@ -42,7 +43,7 @@ const CLOSE_FOR_HUG = 1.6; // hug / kiss / tickle / twirl reach
 const CLOSE_TO_PROPOSE = 2.6;
 const SIT_REACH = 1.9; // how close to a bench seat you must be to sit down
 const TOGETHER = 0.9; // seconds: both pressed D within this → dance together
-const COSY = 0.45; // sitting close: each seat moves this share of the way to the bench's middle
+const COSY = 0.33; // sitting close: each seat moves this share of the way to the bench's middle (the big heads just don't touch)
 
 export class Game {
   constructor(canvas, joystickEl, config) {
@@ -101,6 +102,7 @@ export class Game {
     this.actionNonce = 0; // changes on every new action, so the other screen knows to play it
     this.actionTarget = '';
     this.video = new VideoPlayer();
+    this.wallVideos = new WallVideos();
     this.video.onChange = (playing, info) => this.onVideoChange(playing, info);
     this.raycaster = new THREE.Raycaster();
 
@@ -166,9 +168,14 @@ export class Game {
       if (loaded >= total && !this.photosLoaded) {
         this.photosLoaded = true;
         this.screens.preload(Math.max(0, this.roomIndex));
+        this.wallVideos.preload(Math.max(0, this.roomIndex));
       }
     });
     this.world.add(this.frames.group);
+    // Videos on wall spots: they play there while you stand in front of them.
+    this.wallVideos.stop();
+    this.wallVideos = new WallVideos(this.frames.items.filter((i) => i.isVideo));
+    if (this.photosLoaded) this.wallVideos.preload(0);
 
     // The key hunt's keys in the photos.
     this.keys = buildKeys(this.frames, config.hunt);
@@ -530,10 +537,10 @@ export class Game {
   }
 
   /** Context handed to the action animations (effects, who's nearby…). */
-  #emoteCtx(avatar, position, facing, other) {
+  #emoteCtx(avatar, position, facing, other, otherAvatar = null) {
     return {
       avatar, fx: this.fx, hearts: this.hearts, position, facing, reducedMotion: this.reducedMotion,
-      partner: other ? { position: other, angle: relativeAngle(position, facing, other) } : null,
+      partner: other ? { position: other, angle: relativeAngle(position, facing, other), headRadius: headRadius(otherAvatar) } : null,
     };
   }
 
@@ -585,11 +592,11 @@ export class Game {
     this.#holdHands();
     const partner = this.#nearestPartner();
     this.#followPartner(partner);
-    const action = this.localEmotes.update(dt, this.#emoteCtx(this.avatar, pos, c.facing, partner?.person.pos), c.speed01 > 0.08);
+    const action = this.localEmotes.update(dt, this.#emoteCtx(this.avatar, pos, c.facing, partner?.person.pos, partner?.person.avatar), c.speed01 > 0.08);
     this.avatar.update(dt, c.speed01, action);
 
     // Everyone else.
-    this.remotes.update(dt, (p) => this.#emoteCtx(p.avatar, p.pos, p.facing, pos));
+    this.remotes.update(dt, (p) => this.#emoteCtx(p.avatar, p.pos, p.facing, pos, this.avatar));
     this.#quietMoment(partner);
     this.#selfieShot(partner);
     this.rig.update(dt, pos, this.colliders);
@@ -600,6 +607,7 @@ export class Game {
     this.#updateRoom(pos);
     this.#updateFocus(pos);
     this.frames.update(dt, this.focus);
+    this.wallVideos.update(this.started ? this.focus : null);
     this.keys.update(dt);
     this.decorations.update(dt);
     this.clocks?.update(dt);
@@ -775,7 +783,10 @@ export class Game {
     if (index !== -1 && index !== this.roomIndex) {
       this.roomIndex = index;
       this.onRoomChange(this.plan.rooms[index], index);
-      if (this.photosLoaded) this.screens.preload(index);
+      if (this.photosLoaded) {
+        this.screens.preload(index);
+        this.wallVideos.preload(index);
+      }
       if (this.mapTable && this.plan.rooms[index].isFinale) {
         setTimeout(() => this.plan.rooms[this.roomIndex]?.isFinale && this.onHint('Tap a pin on the map to see the photos from there 📍'), 3500);
       }
@@ -802,7 +813,7 @@ export class Game {
         bestDist = score;
       }
     }
-    if (!this.started || !best?.photo.url) best = null; // the preview's blank frames have nothing to show
+    if (!this.started || !(best?.photo.url || best?.isVideo)) best = null; // the preview's blank frames have nothing to show
     if (best !== this.focus) {
       this.focus = best;
       this.onFocusChange(best);
@@ -824,12 +835,12 @@ export class Game {
     const hit = this.raycaster.intersectObjects(this.frames.items.map((i) => i.mesh), false)[0];
     if (!visible(hit)) return;
     const item = this.frames.items[hit.object.userData.frameIndex];
-    if (item.photo.url) this.onOpenPhoto(item);
+    if (item.photo.url || item.isVideo) this.onOpenPhoto(item);
   }
 
   /** Photos in the same room as `item`, in walking order (for prev/next in the viewer). */
   photosInRoomOf(item) {
-    return this.frames.items.filter((i) => i.roomIndex === item.roomIndex);
+    return this.frames.items.filter((i) => i.roomIndex === item.roomIndex && !i.isVideo);
   }
 
   /** The wall item showing a photo (for the map's pins). */
@@ -846,6 +857,11 @@ export class Game {
     this.camera.fov = this.config.camera.fov + (w < h ? 12 : 0);
     this.camera.updateProjectionMatrix();
   }
+}
+
+/** How big someone's head is (radius in metres; the looks have bigger and smaller heads). */
+function headRadius(avatar) {
+  return 0.3 * (avatar?.head?.scale.x ?? 1);
 }
 
 /** Angle from `facing` to the direction of `to` (0 = straight ahead), −π…π. */

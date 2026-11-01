@@ -39,6 +39,14 @@ export const WELCOME_SIGN_WIDTH = 5.6; // on the first room's back wall (museum.
 export const MIRROR_ID = '__mirror'; // the mirror takes a photo spot (config.mirror)
 const MIRROR_SIZE = { width: 1000, height: 1400 }; // its shape (like a portrait photo)
 
+/** A video that hangs on a wall spot (it has a `slot`) instead of in front of a bench. */
+export const onWall = (video) => Number.isInteger(video.slot);
+
+/** A wall video as a wall item: it takes a spot like a photo (`video` is the video itself). */
+export function wallVideoItem(video) {
+  return { id: video.id, isVideo: true, video, room: video.room, slot: video.slot, title: video.title ?? '', date: '', caption: video.caption ?? '', color: '#1c1a1b', width: video.width || 16, height: video.height || 9 };
+}
+
 /** The mirror as a wall item that takes a spot like a photo, or null if it's switched off. */
 export function mirrorItem(config) {
   const m = config.mirror;
@@ -51,17 +59,20 @@ export function mirrorItem(config) {
  * Every room has fixed spots for photos along all four walls — they only
  * move when the room's size changes. A photo remembers its spot (`slot`, an
  * index into its room's spots); photos without one fill the free spots in
- * walking order. A video screen covers the spots behind it.
+ * walking order. A video either takes a spot too (`slot`, it plays on the
+ * wall when you stand in front of it) or hangs in front of a bench, where
+ * its screen covers the spots behind it.
  *
  * @param photos [{ room, slot?, width, height, … }] in walking order (the mirror is added by itself)
- * @param videos [{ room, bench?, width, height, … }] — each hangs on the wall in front of a bench
+ * @param videos [{ room, slot?, bench?, width, height, … }] — on a wall spot (`slot`), else in front of a bench
  * @returns { rooms, doors, frames (filled spots), spots (all of them), benches, start, bounds }
  */
 export function planMuseum(config, photos, videos = []) {
   const defs = config.rooms.length ? config.rooms : [{ title: 'Gallery', wall: '#eee6dc', trim: '#6b4a35' }];
   const settings = config.frames;
   const mirror = mirrorItem(config);
-  if (mirror) photos = [...photos, mirror];
+  photos = [...photos, ...videos.filter(onWall).map(wallVideoItem), ...(mirror ? [mirror] : [])];
+  videos = videos.filter((v) => !onWall(v));
 
   // Group the photos and videos by room, keeping their walking order.
   const photosByRoom = defs.map(() => []);

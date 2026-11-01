@@ -14,7 +14,7 @@ import { restPose } from './avatar.js';
 import { COUPLE_EMOTES, COUPLE_REACTIONS, SEAT } from './coupleEmotes.js';
 import {
   clamp, smooth, ramp, pulse, lerp, wrap, TAU, legDrop, ON_BACK, wiggle, hand, hands, both,
-  FORWARD, TO_ME, DOWN, UP, INWARD, tmp, bubble, headPos, every, once,
+  FORWARD, TO_ME, DOWN, UP, INWARD, tmp, bubble, headPos, every, once, fit,
 } from './poseKit.js';
 
 // ── The actions ──────────────────────────────────────────────────────
@@ -183,7 +183,7 @@ export const EMOTES = {
   },
   kissed: {
     label: 'Kissed', emoji: '😳', duration: 2.6, upper: true, reaction: true,
-    pose: (t) => (t < 1.2 ? kissPose(t) : { ...both([0.2, 0.93, 0.29], [-0.7, 0, -0.7], 'open'), blush: 1, eyesOpen: 0.25, headRZ: -0.2, browY: 0.4 }),
+    pose: (t, c) => (t < 1.2 ? kissPose(t, c) : { ...both([0.2, 0.93, 0.29], [-0.7, 0, -0.7], 'open'), blush: 1, eyesOpen: 0.25, headRZ: -0.2, browY: 0.4 }),
   },
   blowkiss: {
     label: 'Blow a kiss', emoji: '😘', duration: 2.2, upper: true,
@@ -396,16 +396,17 @@ const BLEND = 0.3; // seconds to glide from one action into the next
 function hugPose(t) {
   const inn = ramp(t, 0, 0.4);
   return {
-    rigZ: 0.22 * inn, bodyRX: 0.12 * inn,
+    // Both lean a little to their own right, so the big heads go past each other, cheek to cheek.
+    rigZ: 0.22 * inn, bodyRX: 0.12 * inn, bodyRZ: 0.3 * inn,
     ...hands([[0.06, 0.72, 0.52], TO_ME, 'relaxed'], [[-0.06, 0.7, 0.5], TO_ME, 'relaxed']), // arms around the other person
     headRZ: 0.25, eyesOpen: 0.2, blush: 0.6, browTilt: -0.2,
   };
 }
 
-function kissPose(t) {
-  const inn = ramp(t, 0, 0.5);
+function kissPose(t, c) {
+  const inn = ramp(t, 0, 0.5) * fit(c, 0.38, 0.5); // you both lean in: only until your faces meet
   return {
-    rigZ: 0.18 * inn, bodyRX: 0.2 * inn, headRZ: 0.3 * inn,
+    rigZ: 0.18 * inn, bodyRX: 0.2 * inn, headRZ: 0.3 * ramp(t, 0, 0.5),
     pucker: t > 0.3 ? 1 : 0, eyesOpen: 0.1, ...both([0.1, 0.45, -0.2], TO_ME, 'relaxed'), blush: 0.5, browY: 0.2,
   };
 }

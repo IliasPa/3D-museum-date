@@ -1,12 +1,15 @@
 /**
- * A small world map drawn on a <canvas>: country outlines (bundled with the
- * site, no map service or API key), a Mercator projection, and a "view" that
- * fits around a set of pins. Used by the curator's Memory map tab and by the
- * map table in the hidden last room — so both show the same map.
+ * A small world map drawn on a <canvas>: countries (bundled with the site, no
+ * map service or API key) in a Mercator projection, and a "view" that fits
+ * around a set of pins. It's drawn like an old paper map: a soft shoreline in
+ * the sea, dashed borders, country names, the countries you've been to
+ * tinted, and a dashed line from place to place in the order of the photos.
+ * Used by the curator's Memory map tab, the map table in the hidden last room
+ * and the simple gallery — so all three show the same map.
  *
  *   const world = await loadWorld();
  *   const view = fitView(points, 16 / 10);           // points: [{ lat, lng }]
- *   drawMap(ctx, world, view, width, height);
+ *   drawMap(ctx, world, view, width, height, { visited: points, route });
  *   const { x, y } = project(view, lat, lng);        // 0…1 across the map
  */
 const MAX_LAT = 84;
@@ -16,14 +19,92 @@ const mercY = (lat) => Math.log(Math.tan(Math.PI / 4 + rad(Math.max(-MAX_LAT, Ma
 const latOf = (y) => deg(2 * Math.atan(Math.exp(y)) - Math.PI / 2);
 
 let worldPromise;
-/** The countries (GeoJSON), downloaded once — only when a map is shown. */
+/**
+ * The world, downloaded once — only when a map is shown: the countries
+ * (rings in degrees, with a bounding box and where their name goes), the
+ * coastlines and the borders between countries.
+ */
 export function loadWorld() {
   worldPromise ??= Promise.all([import('world-atlas/countries-50m.json'), import('topojson-client')])
     .then(([data, topo]) => {
       const topology = data.default ?? data;
-      return { countries: topo.feature(topology, topology.objects.countries).features };
+      const countries = topo.feature(topology, topology.objects.countries).features
+        .filter((f) => f.geometry && f.properties.name !== 'Antarctica') // it wraps the whole world; never needed here
+        .map((f) => {
+          const g = f.geometry;
+          const polys = (g.type === 'Polygon' ? [g.coordinates] : g.type === 'MultiPolygon' ? g.coordinates : []).map((poly) => poly.map(unwrap));
+          const all = polys.flat(2);
+          const lngs = all.map((p) => p[0]);
+          const lats = all.map((p) => p[1]);
+          const main = polys.map((poly) => poly[0]).sort((a, b) => Math.abs(ringArea(b)) - Math.abs(ringArea(a)))[0];
+          return { name: f.properties.name, polys, bbox: [Math.min(...lngs), Math.min(...lats), Math.max(...lngs), Math.max(...lats)], main, label: labelPoint(main) };
+        });
+      const lines = (mesh) => mesh.coordinates;
+      return {
+        countries,
+        coast: lines(topo.mesh(topology, topology.objects.countries, (a, b) => a === b)),
+        borders: lines(topo.mesh(topology, topology.objects.countries, (a, b) => a !== b)),
+      };
     });
   return worldPromise;
+}
+
+/** A ring that crosses the date line (Russia, Fiji) continues past ±180° instead of jumping across the map. */
+function unwrap(ring) {
+  let shift = 0;
+  return ring.map(([lng, lat], i) => {
+    if (i > 0) {
+      const prev = ring[i - 1][0];
+      if (lng - prev > 180) shift -= 360;
+      else if (prev - lng > 180) shift += 360;
+    }
+    return [lng + shift, lat];
+  });
+}
+
+/** Area of a ring in square degrees (signed). */
+function ringArea(ring) {
+  let a = 0;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) a += ring[j][0] * ring[i][1] - ring[i][0] * ring[j][1];
+  return a / 2;
+}
+
+/** Where a country's name goes: the middle of its biggest piece, if that's inside it. */
+function labelPoint(ring) {
+  if (!ring) return null;
+  let a = 0;
+  let x = 0;
+  let y = 0;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const f = ring[j][0] * ring[i][1] - ring[i][0] * ring[j][1];
+    a += f;
+    x += (ring[j][0] + ring[i][0]) * f;
+    y += (ring[j][1] + ring[i][1]) * f;
+  }
+  if (!a) return null;
+  const at = [x / (3 * a), y / (3 * a)];
+  return inRing(at, ring) ? { lng: at[0], lat: at[1] } : null;
+}
+
+function inRing([x, y], ring) {
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const [xi, yi] = ring[i];
+    const [xj, yj] = ring[j];
+    if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) inside = !inside;
+  }
+  return inside;
+}
+
+/** Is a place inside a country? */
+function inCountry(country, { lat, lng }) {
+  const [x0, y0, x1, y1] = country.bbox;
+  for (const l of [lng, lng + 360, lng - 360]) {
+    if (l < x0 || l > x1 || lat < y0 || lat > y1) continue;
+    // Even-odd over all its rings (holes included).
+    if (country.polys.some((poly) => poly.filter((ring) => inRing([l, lat], ring)).length % 2 === 1)) return true;
+  }
+  return false;
 }
 
 /** A photo's place, if it has one: { lat, lng } or null. */
@@ -97,74 +178,266 @@ export function unproject(view, x, y) {
   return { lat: latOf(view.y1 - y * (view.y1 - view.y0)), lng };
 }
 
+/** The paper-map look. The map table in the last room uses a slightly deeper version (TABLE_STYLE). */
+export const MAP_STYLE = {
+  sea: '#d3e6e8', sea2: '#b6d2d8', shore: '#eef7f6', land: '#f7eed9', visited: '#f2cdd2', border: '#c4a57c',
+  coast: '#8a6a49', label: '#9b8164', visitedLabel: '#8e1530', grid: 'rgba(70, 100, 110, 0.13)', route: 'rgba(142, 21, 48, 0.75)', edge: '#8a6a49',
+};
+export const TABLE_STYLE = {
+  ...MAP_STYLE,
+  sea: '#a9cdd2', sea2: '#86afba', shore: '#d4eaea', land: '#f3e4c2', visited: '#ecb6bf', border: '#ae8a5e',
+  coast: '#5a3d26', label: '#8a6c4c', edge: '#4a3020',
+};
+
 /**
- * Draw the map: sea, countries, a grid of meridians and parallels and a
- * thin border. `style` tweaks the colours (the 3D table is a bit warmer).
+ * Draw the map.
+ * @param opts {
+ *   style    colours (MAP_STYLE / TABLE_STYLE)
+ *   visited  [{ lat, lng }] — the countries with these places are tinted, and named in red
+ *   route    [{ x, y }] (0…1 across the map) — a dashed line from place to place
+ *   labels   country names (default true)
+ *   paper    a little grain and darker edges, like old paper (the table)
+ *   frame    a double line round the edge, like a printed map (else a thin one)
+ * }
  */
-export function drawMap(g, world, view, w, h, style = {}) {
-  const c = { sea: '#cfe2e2', sea2: '#b9d3d6', land: '#f3e7cc', border: '#c2a47a', coast: '#9c7f55', grid: 'rgba(80, 100, 110, 0.18)', ...style };
-  const sea = g.createLinearGradient(0, 0, 0, h);
+export function drawMap(g, world, view, w, h, opts = {}) {
+  const c = { ...MAP_STYLE, ...opts.style };
+  const k = w / 1000; // line widths and letters grow with the canvas
+  const sx = w / (view.x1 - view.x0);
+  const sy = h / (view.y1 - view.y0);
+  const mid = (view.x0 + view.x1) / 2;
+  const X = (lng, shift) => (rad(lng) + shift - view.x0) * sx;
+  const Y = (lat) => (view.y1 - mercY(lat)) * sy;
+  /** The copy of the world (−360°, 0, +360°) that lies nearest the view, for a line starting at `lng`. */
+  const shiftFor = (lng) => {
+    let shift = 0;
+    while (rad(lng) + shift - mid > Math.PI) shift -= 2 * Math.PI;
+    while (mid - (rad(lng) + shift) > Math.PI) shift += 2 * Math.PI;
+    return shift;
+  };
+  const span = deg(view.x1 - view.x0);
+  const onScreen = (bbox) => {
+    const shift = shiftFor((bbox[0] + bbox[2]) / 2);
+    return X(bbox[2], shift) > 0 && X(bbox[0], shift) < w && Y(bbox[1]) > 0 && Y(bbox[3]) < h;
+  };
+  const ringsPath = (countries) => {
+    const path = new Path2D();
+    for (const country of countries) {
+      if (!onScreen(country.bbox)) continue;
+      const shift = shiftFor((country.bbox[0] + country.bbox[2]) / 2);
+      for (const poly of country.polys) {
+        for (const ring of poly) {
+          ring.forEach(([lng, lat], i) => (i ? path.lineTo(X(lng, shift), Y(lat)) : path.moveTo(X(lng, shift), Y(lat))));
+          path.closePath();
+        }
+      }
+    }
+    return path;
+  };
+  const linesPath = (lines) => {
+    const path = new Path2D();
+    for (const line of lines) {
+      const shift = shiftFor(line[0][0]);
+      line.forEach(([lng, lat], i) => {
+        // A line that jumps across the date line: lift the pen.
+        if (!i || Math.abs(lng - line[i - 1][0]) > 180) path.moveTo(X(lng, shift), Y(lat));
+        else path.lineTo(X(lng, shift), Y(lat));
+      });
+    }
+    return path;
+  };
+
+  // The sea: lighter in the middle.
+  const sea = g.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, Math.hypot(w, h) / 2);
   sea.addColorStop(0, c.sea);
   sea.addColorStop(1, c.sea2);
   g.fillStyle = sea;
   g.fillRect(0, 0, w, h);
 
   // Meridians and parallels at a round step.
-  const span = deg(view.x1 - view.x0);
-  const step = [1, 2, 5, 10, 15, 30].find((s) => span / s <= 9) ?? 30;
+  const step = [1, 2, 5, 10, 15, 30].find((st) => span / st <= 8) ?? 30;
+  g.save();
   g.strokeStyle = c.grid;
-  g.lineWidth = Math.max(1, w / 900);
+  g.lineWidth = Math.max(0.6, k * 0.9);
   g.beginPath();
-  const west = deg(view.x0);
-  for (let lng = Math.ceil(west / step) * step; lng <= deg(view.x1); lng += step) {
-    const x = ((rad(lng) - view.x0) / (view.x1 - view.x0)) * w;
-    g.moveTo(x, 0);
-    g.lineTo(x, h);
+  for (let lng = Math.ceil(deg(view.x0) / step) * step; lng <= deg(view.x1); lng += step) {
+    g.moveTo(X(lng, 0), 0);
+    g.lineTo(X(lng, 0), h);
   }
   for (let lat = -80; lat <= 80; lat += step) {
-    const y = ((view.y1 - mercY(lat)) / (view.y1 - view.y0)) * h;
-    if (y < 0 || y > h) continue;
-    g.moveTo(0, y);
-    g.lineTo(w, y);
+    if (Y(lat) < 0 || Y(lat) > h) continue;
+    g.moveTo(0, Y(lat));
+    g.lineTo(w, Y(lat));
   }
   g.stroke();
+  g.restore();
 
-  // Countries: filled, with their borders.
-  const sx = w / (view.x1 - view.x0);
-  const sy = h / (view.y1 - view.y0);
-  const mid = (view.x0 + view.x1) / 2;
-  g.beginPath();
-  for (const f of world.countries) {
-    const geom = f.geometry;
-    if (!geom) continue;
-    const polys = geom.type === 'Polygon' ? [geom.coordinates] : geom.type === 'MultiPolygon' ? geom.coordinates : [];
-    for (const poly of polys) {
-      for (const ring of poly) {
-        // Shift the whole ring next to the view (rings never cross the date line in this data).
-        let shift = 0;
-        const rx = rad(ring[0][0]);
-        while (rx + shift - mid > Math.PI) shift -= 2 * Math.PI;
-        while (mid - (rx + shift) > Math.PI) shift += 2 * Math.PI;
-        ring.forEach(([lng, lat], i) => {
-          const x = (rad(lng) + shift - view.x0) * sx;
-          const y = (view.y1 - mercY(lat)) * sy;
-          if (i === 0) g.moveTo(x, y);
-          else g.lineTo(x, y);
-        });
-        g.closePath();
-      }
-    }
-  }
-  g.fillStyle = c.land;
-  g.fill('evenodd');
-  g.strokeStyle = c.border;
-  g.lineWidth = Math.max(0.8, w / 1400);
+  // A soft, light shoreline in the sea (wide strokes under the land).
+  const coast = linesPath(world.coast);
+  g.save();
   g.lineJoin = 'round';
-  g.stroke();
+  g.lineCap = 'round';
+  g.strokeStyle = c.shore;
+  for (const [width, alpha] of [[14, 0.18], [8, 0.3], [4, 0.5]]) {
+    g.globalAlpha = alpha;
+    g.lineWidth = Math.max(width * 0.5, width * k);
+    g.stroke(coast);
+  }
+  g.restore();
 
+  // The land, then the countries you've been to.
+  const visited = (opts.visited ?? []).filter(Boolean);
+  const been = world.countries.filter((country) => visited.some((p) => inCountry(country, p)));
+  g.fillStyle = c.land;
+  g.fill(ringsPath(world.countries), 'evenodd');
+  if (been.length) {
+    g.fillStyle = c.visited;
+    g.fill(ringsPath(been), 'evenodd');
+  }
+  if (opts.paper) paperGrain(g, w, h);
+
+  // Borders (dashed) and the coast.
+  g.save();
+  g.lineJoin = 'round';
+  g.strokeStyle = c.border;
+  g.lineWidth = Math.max(0.7, 1.3 * k);
+  g.setLineDash([4 * Math.max(0.6, k), 3 * Math.max(0.6, k)]);
+  g.stroke(linesPath(world.borders));
+  g.setLineDash([]);
   g.strokeStyle = c.coast;
-  g.lineWidth = Math.max(2, w / 400);
-  g.strokeRect(0, 0, w, h);
+  g.lineWidth = Math.max(0.8, 1.6 * k);
+  g.stroke(coast);
+  g.restore();
+
+  if (opts.labels !== false) drawLabels(g, world.countries, been, { X, Y, shiftFor, w, h, k, c, pins: opts.route ?? [] });
+  if (opts.route?.length > 1) drawRoute(g, opts.route, w, h, k, c.route);
+
+  if (opts.paper) {
+    // Darker edges, like old paper.
+    const edge = g.createRadialGradient(w / 2, h / 2, Math.min(w, h) * 0.35, w / 2, h / 2, Math.hypot(w, h) / 2);
+    edge.addColorStop(0, 'rgba(60, 35, 15, 0)');
+    edge.addColorStop(1, 'rgba(60, 35, 15, 0.28)');
+    g.fillStyle = edge;
+    g.fillRect(0, 0, w, h);
+  }
+  g.strokeStyle = c.edge;
+  if (opts.frame) {
+    g.lineWidth = 6 * k;
+    g.strokeRect(3 * k, 3 * k, w - 6 * k, h - 6 * k);
+    g.lineWidth = 1.5 * k;
+    g.strokeRect(14 * k, 14 * k, w - 28 * k, h - 28 * k);
+  } else {
+    g.lineWidth = Math.max(2, w / 400);
+    g.strokeRect(0, 0, w, h);
+  }
+}
+
+/** Country names, biggest countries first, never on top of each other, of a pin or of the edge. */
+function drawLabels(g, countries, been, { X, Y, shiftFor, w, h, k, c, pins }) {
+  const size = Math.max(9, 13 * k);
+  // The pins (and their names, to the right) are already "taken".
+  const placed = pins.map((p) => [p.x * w - 14 * Math.max(1, k), p.y * h - 30 * Math.max(1, k), p.x * w + 90 * Math.max(1, k), p.y * h + 6 * Math.max(1, k)]);
+  const list = countries
+    .filter((country) => country.label)
+    .map((country) => {
+      const shift = shiftFor(country.label.lng);
+      const [x0, y0, x1, y1] = country.bbox;
+      return { country, x: X(country.label.lng, shift), y: Y(country.label.lat), width: X(x1, shift) - X(x0, shift), height: Y(y0) - Y(y1) };
+    })
+    .filter((l) => l.x > 0 && l.x < w && l.y > 0 && l.y < h)
+    .sort((a, b) => b.width * b.height - a.width * a.height);
+  g.save();
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  for (const l of list.slice(0, 40)) {
+    const visited = been.includes(l.country);
+    const name = l.country.name.toUpperCase();
+    g.font = `${visited ? 700 : 600} ${size}px "EB Garamond", Georgia, serif`;
+    if ('letterSpacing' in g) g.letterSpacing = `${(size * 0.14).toFixed(1)}px`;
+    const tw = g.measureText(name).width;
+    if (tw > l.width * 0.95 || size > l.height * 0.8) continue; // doesn't fit inside the country
+    const box = [l.x - tw / 2 - 4, l.y - size / 2 - 2, l.x + tw / 2 + 4, l.y + size / 2 + 2];
+    if (box[0] < 6 * k || box[1] < 6 * k || box[2] > w - 6 * k || box[3] > h - 6 * k) continue; // cut off by the edge
+    if (placed.some((b) => box[0] < b[2] && box[2] > b[0] && box[1] < b[3] && box[3] > b[1])) continue;
+    placed.push(box);
+    g.fillStyle = visited ? c.visitedLabel : c.label;
+    g.globalAlpha = visited ? 0.9 : 0.75;
+    g.fillText(name, l.x, l.y);
+  }
+  g.restore();
+}
+
+/** A dashed line from place to place (gently curved, like a flight path). */
+function drawRoute(g, points, w, h, k, colour) {
+  g.save();
+  g.strokeStyle = colour;
+  g.lineWidth = Math.max(1.2, 2.2 * k);
+  g.lineCap = 'round';
+  g.setLineDash([7 * Math.max(0.6, k), 6 * Math.max(0.6, k)]);
+  g.beginPath();
+  points.forEach((p, i) => {
+    const x = p.x * w;
+    const y = p.y * h;
+    if (!i) return g.moveTo(x, y);
+    const px = points[i - 1].x * w;
+    const py = points[i - 1].y * h;
+    // Bend to one side by a sixth of the distance.
+    const mx = (px + x) / 2 + (y - py) / 6;
+    const my = (py + y) / 2 - (x - px) / 6;
+    g.quadraticCurveTo(mx, my, x, y);
+  });
+  g.stroke();
+  g.restore();
+}
+
+/** A fine grain over the land and sea, like paper. */
+function paperGrain(g, w, h) {
+  let seed = 7;
+  const rand = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  g.save();
+  for (let i = 0; i < (w * h) / 900; i++) {
+    g.fillStyle = rand() < 0.5 ? 'rgba(90, 60, 30, 0.07)' : 'rgba(255, 255, 255, 0.08)';
+    g.fillRect(rand() * w, rand() * h, 1 + rand() * 2.5, 1 + rand() * 2.5);
+  }
+  g.restore();
+}
+
+/**
+ * A map pin: a round head on a short needle, with a soft shadow (gold when
+ * it's the chosen one), and a count if it holds several photos. `size` 1 ≈ 18 px tall.
+ */
+export function drawPin(g, x, y, { chosen = false, count = 1, size = 1 } = {}) {
+  g.save();
+  g.translate(x, y);
+  g.scale(size, size);
+  g.fillStyle = 'rgba(40, 20, 10, 0.25)';
+  g.beginPath();
+  g.ellipse(3, 1, 5, 2, 0, 0, Math.PI * 2);
+  g.fill();
+  g.strokeStyle = '#5a4630';
+  g.lineWidth = 2;
+  g.beginPath();
+  g.moveTo(0, 0);
+  g.lineTo(0, -14);
+  g.stroke();
+  const head = g.createRadialGradient(-2.5, -20.5, 1, 0, -18, 8);
+  head.addColorStop(0, chosen ? '#ffe7a3' : '#ff8a9c');
+  head.addColorStop(1, chosen ? '#c8901c' : '#b3162f');
+  g.fillStyle = head;
+  g.strokeStyle = '#fff';
+  g.lineWidth = 2;
+  g.beginPath();
+  g.arc(0, -18, 7.5, 0, Math.PI * 2);
+  g.fill();
+  g.stroke();
+  if (count > 1) {
+    g.fillStyle = '#fff';
+    g.font = '700 9px Manrope, sans-serif';
+    g.textAlign = 'center';
+    g.textBaseline = 'middle';
+    g.fillText(String(count), 0, -17.5);
+  }
+  g.restore();
 }
 
 /**

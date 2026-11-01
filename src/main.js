@@ -69,7 +69,7 @@ async function boot() {
     console.error(err);
     game = null; // no 3D on this device: the simple gallery it is (after signing in)
   }
-  if (import.meta.env.DEV) Object.assign(window, { __museum: game, __music: music, __gallery: gallery }); // handy for poking around in the console
+  if (import.meta.env.DEV) Object.assign(window, { __museum: game, __music: music, __gallery: gallery, __lightbox: lightbox }); // handy for poking around in the console
 
   // Connect the game to the on-screen UI.
   if (game) connectGame();
@@ -206,7 +206,7 @@ async function boot() {
       game?.setClocks(clockZones(people.length ? people : [{ name: '', tz: visits.myTimeZone() }]));
     });
     v.refreshClocks();
-    // The key hunt: finds are shared (you hunt together).
+    // The key hunt is a game for two: a key either of you finds is found for both.
     const hunt = v.config.hunt;
     const keys = hunt.enabled ? hiddenKeys(hunt, v.photos) : [];
     v.hunt = { keys, total: keys.length, emoji: shapeOf(hunt).emoji };
@@ -219,10 +219,18 @@ async function boot() {
       return;
     }
     if (v.isGuest) {
+      let first = true; // the finds from before you came in aren't news
       v.huntLink = await visits.joinHunt(v.museumId, (finds) => {
-        const before = v.found.size;
-        v.found = new Set([...finds.keys()].filter((id) => keys.some((k) => k.id === id)));
-        applyHunt(v.found.size > before && before > 0);
+        if (visit !== v) return;
+        // New finds — by the other one (yours are in `found` already, even before they're saved).
+        const fresh = [...finds.entries()].filter(([id]) => keys.some((k) => k.id === id) && !v.found.has(id));
+        for (const [id] of fresh) v.found.add(id);
+        if (!first && fresh.length && v.found.size < v.hunt.total) {
+          const by = fresh.at(-1)[1]?.by || 'They';
+          hud.showHint(`${by} found one! ${v.hunt.emoji} ${v.found.size} of ${v.hunt.total} — together`, 4000);
+        }
+        applyHunt(!first && fresh.length > 0);
+        first = false;
       });
     }
     applyHunt();
@@ -236,12 +244,14 @@ async function boot() {
     const found = Math.min(v.found.size, total);
     const locked = Boolean(total && v.config.hunt.locks && v.config.finale.enabled && found < total);
     const lockText = `Find all ${countLabel(v.config.hunt, total)} hidden in the photos (${found} so far)`;
-    hud.setHunt(total ? found : null, total || null, emoji);
+    hud.setHunt(total ? found : null, total || null, emoji, Boolean(v.huntLink));
     game?.setHunt(v.found, { locked, lockText });
     lightbox.refreshKeys();
     gallery.setHunt(total ? { found, total, emoji, locked, lockText } : null);
     if (newFind && found >= total && total) {
-      hud.showHint(v.config.finale.enabled && v.config.hunt.locks ? `All ${countLabel(v.config.hunt, total)} found! The curtain is open ♥` : `All ${countLabel(v.config.hunt, total)} found! ♥`, 6000);
+      const all = `You found all ${countLabel(v.config.hunt, total)} together!`;
+      hud.showHint(v.config.finale.enabled && v.config.hunt.locks ? `${all} The curtain is open ♥` : `${all} ♥`, 6000);
+      game?.emote();
     }
   }
 
@@ -251,7 +261,7 @@ async function boot() {
     v.found.add(id);
     v.huntLink?.found(id, v.settings.name || firstName(v.user));
     const n = v.found.size;
-    if (n < v.hunt.total) hud.showHint(`You found one! ${v.hunt.emoji} ${n} of ${v.hunt.total}`, 3500);
+    if (n < v.hunt.total) hud.showHint(`You found one! ${v.hunt.emoji} ${n} of ${v.hunt.total}${v.huntLink ? ' — together' : ''}`, 3500);
     applyHunt(true);
     game?.emote();
   }
@@ -262,7 +272,7 @@ async function boot() {
     game.onRoomChange = (room, index) => hud.setRoom(room, index, galleryRooms());
     game.onFocusChange = (item) => (item && !lightbox.isOpen ? placard.show(item) : placard.hide());
     game.onFinaleNear = (near) => letter.setNear(near);
-    game.onOpenPhoto = (item) => openPhotos(game.photosInRoomOf(item), item);
+    game.onOpenPhoto = (item) => (item.isVideo ? watchWallVideo(item) : openPhotos(game.photosInRoomOf(item), item));
     game.onOpenPlace = (photos) => {
       const items = photos.map((p) => game.itemOfPhoto(p));
       openPhotos(items, items[0]);
@@ -333,7 +343,14 @@ async function boot() {
       game.setPaused(true);
       film.open(game.video.el, game.video.item.video.title);
     };
-    film.onClose = () => game.setPaused(false);
+    film.onClose = () => {
+      game.setPaused(false);
+      if (!game.wallVideos.loud) return;
+      // A wall video: silent on the wall again, and the music comes back.
+      game.wallVideos.quiet();
+      music.resumeAfterVideo();
+      if (game.focus) placard.show(game.focus);
+    };
 
     // The wardrobe (👕): change your look in the middle of a visit.
     hud.onWardrobe = () => {
@@ -369,6 +386,16 @@ async function boot() {
     }, 3000);
   }
 
+  /** A video on a wall spot: full screen, with sound (inside the tap / key, for phones). */
+  function watchWallVideo(item) {
+    const el = game.wallVideos.forFullScreen(item);
+    if (!el) return hud.showHint('The film is on its way… 🎬', 3500);
+    placard.hide();
+    music.pauseForVideo();
+    game.setPaused(true);
+    film.open(el, item.photo.title);
+  }
+
   function openPhotos(list, item) {
     placard.hide();
     game.setPaused(true);
@@ -393,6 +420,13 @@ async function boot() {
         hud.showHint('A guided tour 🧭 — walk yourself any time to take over', 5000);
       }, game.reducedMotion ? 600 : 2200);
     }
+    // The key hunt: a game for the two of you.
+    setTimeout(() => {
+      const h = visit?.hunt;
+      if (!h?.total || !visit.huntLink || visit.found.size >= h.total) return; // (the curator walking through alone: no)
+      const left = h.total - visit.found.size;
+      hud.showHint(`${countLabel(config.hunt, left)} ${left === 1 ? 'is' : 'are'} hidden in the photos — find ${left === 1 ? 'it' : 'them'} together ${h.emoji}`, 5500);
+    }, settings.tour ? 9000 : 6000);
 
     hud.onEmote = () => {
       game.emote();

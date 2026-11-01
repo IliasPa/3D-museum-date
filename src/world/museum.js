@@ -59,9 +59,12 @@ export function buildMuseum(plan, config, renderer) {
   plan.rooms.forEach((room, i) => {
     const m = wallMats[i];
     const all = [m, m, m, m, m, m];
-    // West and east walls (extended through the corners).
-    wallBox(room.x0 - T, room.x0, 0, H, room.z0 - T, room.z1 + T, all);
-    wallBox(room.x1, room.x1 + T, 0, H, room.z0 - T, room.z1 + T, all);
+    // West and east walls, from corner to corner. The north and south walls
+    // fill the corners: if a side wall ran through them, its end would lie in
+    // the same plane as the next room's wall and flicker through it in this
+    // room's colour (wherever two rooms have different widths).
+    wallBox(room.x0 - T, room.x0, 0, H, room.z0, room.z1, all);
+    wallBox(room.x1, room.x1 + T, 0, H, room.z0, room.z1, all);
     // The first room also needs a south wall (the museum's back wall).
     if (i === 0) wallBox(room.x0 - T, room.x1 + T, 0, H, room.z1, room.z1 + T, all);
 

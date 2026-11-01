@@ -77,7 +77,8 @@ export async function loadMuseum(museumId) {
     return {
       id: d.id,
       room: v.room ?? 1,
-      bench: v.bench, // which bench it hangs in front of (layout.js)
+      slot: v.slot ?? null, // a spot on the walls, where it plays in a frame (layout.js)…
+      bench: v.bench, // …or the bench it hangs in front of
       title: v.title ?? '',
       caption: v.caption ?? '',
       width: v.width,

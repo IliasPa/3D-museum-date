@@ -3,6 +3,51 @@
 What changed in each version of Our Museum. The newest is at the top. Every
 version has a tag and a release on GitHub.
 
+## 2.1.0 — 1 November 2026
+
+### In the museum
+- **Walls no longer show through into the next room.** Where two rooms had different widths, a strip of one room's wall colour flickered on the next room's wall.
+- **Videos on the walls:** a video can hang on a photo spot, in a frame like a photo, with a ▶ on it.
+  - It plays there silently while you stand in front of it.
+  - A tap (or Space) shows it full screen with sound, and the music waits.
+- **Bench actions no longer sink into each other.**
+  - The heads are big, so leaning in (a kiss, a cuddle, an Eskimo kiss, a whisper, a big hug…) now goes only until the heads touch, shared between the two of you.
+  - Sitting close leaves a little more room between you.
+  - Hugs and kisses standing up too: a hug is cheek to cheek.
+  - The arm around the shoulder (A, Y) and round the waist (C) reach behind the other one's back, the heart (M) meets in the middle, and the ice cream (F) goes up to their mouth.
+- **The key hunt is a game for two:**
+  - A key either of you finds counts for both.
+  - You're told when the other one finds one: "Anna found one! 🔑 3 of 5 — together".
+  - At the start: "5 keys are hidden in the photos — find them together".
+- **A new look for the memory map:**
+  - An old paper map: a soft shoreline, dashed borders, country names, a compass, and the title on a ribbon.
+  - The countries you've been to are tinted, and a dashed line goes from place to place in the order of the photos.
+  - Above every pin floats a little polaroid of its photo, with the place written under it. Tap it to see the photos.
+  - The room's pink light no longer washes it out.
+  - The simple gallery and the curator page use the same map.
+- **The mirror** picks one of your pictures at random each time you step up to it, and again every few seconds. The same one may come again.
+- **The photo viewer:** right after closing it, the card of the next photo you walk up to could stay hidden; and a photo opened again within a moment of closing the viewer could vanish. Both fixed.
+
+### Curator page
+- **"+ Add photos/videos"** (was "+ Add photos"): videos fill the free spots too.
+  - A free spot's button is now **"+ Add a photo or video"**.
+  - Files dropped on a spot or a room work the same way. A video dropped on a bench still hangs at that bench.
+- **Drag a ▶ between spots and benches.** From a spot onto a bench, it plays when someone sits there. From a bench onto a spot, it plays on the wall.
+- **Key hunt:**
+  - The big key sits inside the settings box, at its top right.
+  - Hold a dragged key at the top or bottom edge of the window and the page scrolls, to reach photos further down.
+  - The status shows how many the guests found together, and who found which. Found keys get a ✓.
+- **Memory map:**
+  - After adding photos, the Preview says how many brought their place along. If some didn't, it says why that happens (location off on the camera, removed by a chat app, or by the phone when sharing) and to place them in the Memory map tab.
+  - Each photo's panel in the Preview shows its place (📍).
+  - The sample photos come with places.
+  - The rows of the list line up.
+- **Moves are always saved.** Moving a photo or the mirror to another spot was sometimes lost after a reload (when the walking order stayed the same).
+- **No longer the same:** a video file dropped on a room (not on a bench) now takes a free spot there, instead of the room's first free bench.
+
+### Behind the scenes
+- No new database rules in this version. The key hunt is only shared once the 2.0.0 rules are on Google's servers (`npm run deploy:rules`); without them, each of you hunts alone.
+
 ## 2.0.0 — 1 November 2026
 
 ### Curator page

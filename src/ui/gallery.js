@@ -4,7 +4,7 @@
  * them big — the key hunt works there too), the videos, the mirror's
  * pictures, the memory map and, at the end, the letter.
  */
-import { loadWorld, fitView, drawMap, groupPins, placeOf } from '../map/worldMap.js';
+import { loadWorld, fitView, drawMap, drawPin, groupPins, placeOf } from '../map/worldMap.js';
 
 const el = (tag, cls, text) => {
   const n = document.createElement(tag);
@@ -178,7 +178,7 @@ export class Gallery {
     const canvas = el('canvas', 'gallery-map-canvas');
     section.append(canvas);
     const aspect = 16 / 11;
-    const view = fitView(pinned.map(placeOf), aspect, { minSpan: 5 });
+    const view = fitView(pinned.map(placeOf), aspect, { minSpan: 8 });
     let pins = [];
     loadWorld().then((world) => {
       const w = canvas.clientWidth || 600;
@@ -189,12 +189,9 @@ export class Gallery {
       canvas.style.height = `${h}px`;
       const g = canvas.getContext('2d');
       g.setTransform(dpr, 0, 0, dpr, 0, 0);
-      drawMap(g, world, view, w, h);
       pins = groupPins(pinned, view, 0.03);
-      g.font = '22px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif';
-      g.textAlign = 'center';
-      g.textBaseline = 'bottom';
-      for (const p of pins) g.fillText('📍', p.x * w, p.y * h + 4);
+      drawMap(g, world, view, w, h, { visited: pinned.map(placeOf), route: pins });
+      for (const p of pins) drawPin(g, p.x * w, p.y * h, { count: p.photos.length, size: 1.2 });
     }).catch(() => section.remove());
     canvas.addEventListener('click', (e) => {
       const r = canvas.getBoundingClientRect();

@@ -1,9 +1,11 @@
 /**
  * The "Key hunt" tab: switch the hunt on, choose how many and what shape, and
  * hide them inside the photos. Below the settings: every photo; the big key at
- * the top right is where keys come from (drag one onto a photo) and where they
- * go back (drag one onto it to take it out of the photo). A click on a photo
- * shows it big — its keys can still be moved there.
+ * the top right of the settings is where keys come from (drag one onto a
+ * photo) and where they go back (drag one onto it to take it out of the
+ * photo). The page scrolls by itself when a key is dragged near its top or
+ * bottom edge. A click on a photo shows it big — its keys can still be moved
+ * there. The guests hunt together: a key either one finds is found for both.
  */
 import { HUNT_SHAPES, shapeOf, hiddenKeys, countLabel } from '../hunt.js';
 import { museumConfig } from '../museumConfig.js';
@@ -21,7 +23,7 @@ const MAX_KEYS = 30;
  *   toast(text, ms)
  *   thumbUrl(photo)     small picture (object URL)
  *   imageUrl(photo, size)  promise of the 'md' / 'lg' picture
- *   finds()             promise of Map keyId → { by, t } (the guests' finds so far)
+ *   finds()             promise of Map keyId → { by, t } (the guests' finds so far — `by` is who found it)
  *   resetFinds()        hide everything again for the guests
  *   onChange()          the keys moved (the Preview shows them too)
  * }
@@ -109,7 +111,7 @@ export function createHuntTab(panel, ctx) {
       ctx.toast(`All ${countLabel(hunt(), hunt().count)} are hidden. Raise “How many” to hide more.`, 4500);
       return;
     }
-    drag = { key, x0: e.clientX, y0: e.clientY, moved: false, ghost: null, over: null };
+    drag = { key, x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY, moved: false, ghost: null, over: null };
     addEventListener('pointermove', onMove);
     addEventListener('pointerup', onUp, { once: true });
     addEventListener('pointercancel', onCancel, { once: true });
@@ -117,6 +119,8 @@ export function createHuntTab(panel, ctx) {
 
   function onMove(e) {
     if (!drag) return;
+    drag.x = e.clientX;
+    drag.y = e.clientY;
     if (!drag.moved && Math.hypot(e.clientX - drag.x0, e.clientY - drag.y0) < 4) return;
     if (!drag.moved) {
       drag.moved = true;
@@ -125,10 +129,32 @@ export function createHuntTab(panel, ctx) {
       drag.ghost.textContent = shapeOf(hunt()).emoji;
       document.body.append(drag.ghost);
       document.body.classList.add('dragging-key');
+      requestAnimationFrame(edgeScroll);
       if (drag.key) document.querySelectorAll(`.hunt-key[data-key="${drag.key.id}"]`).forEach((n) => n.classList.add('lifted'));
     }
     drag.ghost.style.transform = `translate(${e.clientX}px, ${e.clientY}px)`;
-    const over = dropTarget(e.clientX, e.clientY);
+    updateOver(e.clientX, e.clientY);
+  }
+
+  /**
+   * Resting near the top or bottom of the window while dragging scrolls the
+   * page (to reach far photos, or the big key). Only after a moment there,
+   * so passing through the edge to drop on a photo doesn't move the page.
+   */
+  function edgeScroll(now) {
+    if (!drag?.moved || zoomOpen()) return;
+    const edge = 70;
+    const speed = drag.y < edge ? -(edge - drag.y) / 4 : drag.y > innerHeight - edge ? (drag.y - (innerHeight - edge)) / 4 : 0;
+    if (!speed) drag.edgeSince = null;
+    else if ((drag.edgeSince ??= now) < now - 350) {
+      scrollBy(0, speed);
+      updateOver(drag.x, drag.y);
+    }
+    requestAnimationFrame(edgeScroll);
+  }
+
+  function updateOver(x, y) {
+    const over = dropTarget(x, y);
     if (over !== drag.over) {
       drag.over?.classList.remove('key-over');
       over?.classList.add('key-over');
@@ -255,9 +281,18 @@ export function createHuntTab(panel, ctx) {
     try {
       const finds = await ctx.finds();
       if (token !== statusToken) return;
-      const found = keys().filter((k) => finds.has(k.id)).length;
-      if (found) parts.push(`the guests found ${found}`);
+      const found = keys().filter((k) => finds.has(k.id));
+      if (found.length) {
+        // Found together — and by whom.
+        const by = new Map();
+        for (const k of found) {
+          const name = finds.get(k.id)?.by || 'someone';
+          by.set(name, (by.get(name) ?? 0) + 1);
+        }
+        parts.push(`found together: ${found.length} (${[...by].map(([name, n]) => `${name} ${n}`).join(', ')})`);
+      }
       status.textContent = parts.join(' · ');
+      for (const n of document.querySelectorAll('.hunt-key')) n.classList.toggle('found', finds.has(n.dataset.key));
       $('.hunt-reset', panel).hidden = !finds.size;
     } catch {
       // can't read the finds right now: just show what's hidden

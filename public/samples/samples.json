@@ -4,69 +4,99 @@
     "room": 1,
     "title": "The first hello",
     "date": "Spring 2019",
-    "caption": "Replace this with the story of the moment we met."
+    "caption": "Replace this with the story of the moment we met.",
+    "place": "Athens",
+    "lat": 37.9755,
+    "lng": 23.7348
   },
   {
     "file": "placeholder-02.jpg",
     "room": 1,
     "title": "Our first date",
     "date": "May 2019",
-    "caption": "Two coffees, three hours, zero awkward silences."
+    "caption": "Two coffees, three hours, zero awkward silences.",
+    "place": "Plaka, Athens",
+    "lat": 37.9726,
+    "lng": 23.7303
   },
   {
     "file": "placeholder-03.jpg",
     "room": 1,
     "title": "Our first photo together",
     "date": "June 2019",
-    "caption": "The one where we both blinked, and kept it anyway."
+    "caption": "The one where we both blinked, and kept it anyway.",
+    "place": "Nafplio",
+    "lat": 37.5673,
+    "lng": 22.8015
   },
   {
     "file": "placeholder-04.jpg",
     "room": 2,
     "title": "The mountains",
     "date": "August 2020",
-    "caption": "You said it was a short hike. It was not a short hike."
+    "caption": "You said it was a short hike. It was not a short hike.",
+    "place": "Zermatt",
+    "lat": 46.0207,
+    "lng": 7.7491
   },
   {
     "file": "placeholder-05.jpg",
     "room": 2,
     "title": "By the sea",
     "date": "July 2021",
-    "caption": "Sunsets are better with you narrating them."
+    "caption": "Sunsets are better with you narrating them.",
+    "place": "Santorini",
+    "lat": 36.4618,
+    "lng": 25.3753
   },
   {
     "file": "placeholder-06.jpg",
     "room": 2,
     "title": "City lights",
     "date": "December 2022",
-    "caption": "Lost, cold, and laughing about it."
+    "caption": "Lost, cold, and laughing about it.",
+    "place": "Paris",
+    "lat": 48.8584,
+    "lng": 2.2945
   },
   {
     "file": "placeholder-07.jpg",
     "room": 2,
     "title": "Road trip",
     "date": "Summer 2023",
-    "caption": "Our playlist, the open road, and too many snacks."
+    "caption": "Our playlist, the open road, and too many snacks.",
+    "place": "Amalfi Coast",
+    "lat": 40.6281,
+    "lng": 14.485
   },
   {
     "file": "placeholder-08.jpg",
     "room": 3,
     "title": "Sunday mornings",
     "date": "2024",
-    "caption": "Slow coffee and your terrible jokes. My favourite."
+    "caption": "Slow coffee and your terrible jokes. My favourite.",
+    "place": "Athens",
+    "lat": 37.9643,
+    "lng": 23.7253
   },
   {
     "file": "placeholder-09.jpg",
     "room": 3,
     "title": "Our home",
     "date": "2025",
-    "caption": "Where every day starts and ends with you."
+    "caption": "Where every day starts and ends with you.",
+    "place": "Thessaloniki",
+    "lat": 40.6401,
+    "lng": 22.9444
   },
   {
     "file": "placeholder-10.jpg",
     "room": 3,
     "title": "Still us",
     "date": "Today",
-    "caption": "And still my favourite person in every room."
+    "caption": "And still my favourite person in every room.",
+    "place": "Lisbon",
+    "lat": 38.7223,
+    "lng": -9.1393
   }
 ]

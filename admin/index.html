@@ -145,7 +145,12 @@
         <!-- Key hunt -->
         <div class="tab" data-panel="hunt" hidden>
           <form class="panel text-panel hunt-settings">
+            <div class="key-source" title="Drag from here onto a photo to hide one · drag one back here to take it out">
+              <span class="key-source-emoji">🔑</span>
+              <span class="key-source-count"></span>
+            </div>
             <label class="check"><input type="checkbox" name="enabled" /> Key hunt on</label>
+            <p class="hint">A game for the two of them: a key either one finds is found for both, and they see each other's finds.</p>
             <div class="form-row">
               <label class="hunt-count">How many <input type="number" name="count" min="1" max="30" /></label>
               <div class="hunt-shape-pick">
@@ -163,11 +168,7 @@
             </div>
           </form>
           <div class="hunt-board">
-            <div class="key-source" title="Drag from here onto a photo to hide one · drag one back here to take it out">
-              <span class="key-source-emoji">🔑</span>
-              <span class="key-source-count"></span>
-            </div>
-            <p class="help">Drag from the big key onto a photo to hide one there. Drag a key to move it, or back onto the big key to
+            <p class="help">Drag from the big key (in the box above) onto a photo to hide one there. Drag a key to move it, or back onto the big key to
               take it out. Click a photo to see it bigger (you can move its keys there too). In the museum, visitors find them
               by tapping them — on the wall or in the photo viewer.</p>
             <p class="empty hunt-empty">No photos yet — add them in the Preview tab.</p>
@@ -179,12 +180,13 @@
         <div class="tab" data-panel="preview" hidden>
           <p class="help">Seen from above: visitors start on the left and walk to the right. <strong>Click</strong> a room, a numbered spot,
             a bench, the <strong>start</strong> dot or the last room to edit it below. <span class="key-filled">Green</span> spots have a photo,
-            <span class="key-empty">red</span> ones are free, 🪞 is the mirror. <strong>Drag</strong> a green number (or the 🪞) onto another
-            spot or room to move it, and a ▶ onto another bench. You can also drop photo and video files straight onto a spot, a bench
+            <span class="key-empty">red</span> ones are free, 🪞 is the mirror and ▶ a video (on a spot it plays on the wall while someone
+            stands in front of it; at a bench, when someone sits there). <strong>Drag</strong> a green number, the 🪞 or a ▶ onto another
+            spot or room to move it — a ▶ also onto a bench. You can also drop photo and video files straight onto a spot, a bench
             or a room. Everything saves by itself.</p>
           <div class="plan-tools">
-            <label class="btn btn-ghost add-photos">+ Add photos
-              <input class="photos-input" type="file" accept="image/*,.heic,.heif" multiple hidden />
+            <label class="btn btn-ghost add-photos">+ Add photos/videos
+              <input class="photos-input" type="file" accept="image/*,.heic,.heif,video/*" multiple hidden />
             </label>
             <button class="btn btn-ghost add-samples" type="button">Add 10 sample photos</button>
             <button class="btn btn-ghost add-room" type="button">+ Add room</button>
@@ -233,10 +235,10 @@
             </div>
             <div class="spot-empty-wrap">
               <label class="dropzone spot-empty">
-                <input class="spot-input" type="file" accept="image/*,.heic,.heif" />
+                <input class="spot-input" type="file" accept="image/*,.heic,.heif,video/*" />
                 <strong class="sp-empty-title"></strong>
-                <span class="btn sp-add">+ Add a photo</span>
-                <small>or drop one here</small>
+                <span class="btn sp-add">+ Add a photo or video</span>
+                <small>or drop one here · a video plays in its frame while someone stands in front of it, and full screen with sound on a tap</small>
               </label>
               <button class="btn btn-ghost sp-mirror" type="button">🪞 Hang the mirror here</button>
             </div>
@@ -246,7 +248,8 @@
             <h3>🪞 The mirror</h3>
             <p class="help">From far away it's black. Standing in front of it, it swirls and turns into <em>the thing you want the most</em>:
               how you dream to be in the future, or how things would have been if you'd never met. Every person sees their own pictures
-              (several take turns). Without a picture for someone, the mirror shows the two of you, reflected.</p>
+              (with several, one is picked at random each time — the same one may come again). Without a picture for someone, the
+              mirror shows the two of you, reflected.</p>
             <p class="mirror-ai">✨ Making these pictures with AI right here is coming in a future update. For now, make them in an AI app
               of your choice and add them below.</p>
             <div class="mirror-people"></div>

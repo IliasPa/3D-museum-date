@@ -18,7 +18,7 @@
  */
 import {
   clamp, smooth, ramp, pulse, lerp, wrap, TAU, wiggle, hand, hands, both,
-  FORWARD, TO_ME, DOWN, UP, INWARD, tmp, bubble, headPos, every, once,
+  FORWARD, TO_ME, DOWN, UP, INWARD, tmp, bubble, headPos, every, once, apart, fit,
 } from './poseKit.js';
 
 // ── Sitting ──────────────────────────────────────────────────────────
@@ -169,9 +169,11 @@ const B = {
     pose: (t, c) => {
       const s = sideOf(c);
       const k = ramp(t, 0.2, 0.9) * (1 - ramp(t, 3.6, 4.2));
+      const lean = k * fit(c, 0.12, 0.4);
       return seated({
-        ...hand(nearHand(s), [s * lerp(0.12, 0.5, k), lerp(0.49, 0.86, k), lerp(0.26, -0.1, k)], [-s, -0.4, 0.2], 'relaxed'),
-        bodyRZ: -s * 0.12 * k, headRZ: -s * 0.2 * k, headRY: s * 0.25 * k, blush: 0.6 * k, eyesOpen: 1 - 0.45 * k, browY: 0.2 * k,
+        // The hand goes behind their back, onto their far shoulder.
+        ...hand(nearHand(s), [s * lerp(0.12, Math.min(0.62, apart(c) - 0.12), k), lerp(0.49, 0.86, k), lerp(0.26, -0.2, k)], [-s, -0.4, 0.2], 'relaxed'),
+        bodyRZ: -s * 0.12 * lean, headRZ: -s * 0.2 * k, headRY: s * 0.25 * k, blush: 0.6 * k, eyesOpen: 1 - 0.45 * k, browY: 0.2 * k,
       });
     },
   },
@@ -255,7 +257,8 @@ const B = {
     pose: (t, c) => {
       const s = sideOf(c);
       const k = ramp(t, 0.2, 1.0) * (1 - ramp(t, 4.4, 5));
-      return seated({ rigX: s * 0.08 * k, bodyRZ: -s * 0.32 * k, headRZ: -s * 0.5 * k, eyesOpen: 1 - 0.75 * k, blush: 0.5 * k, ...both([0.1, 0.5, 0.22], TO_ME, 'relaxed') });
+      const lean = k * fit(c, 0.4, 0.85);
+      return seated({ rigX: s * 0.08 * lean, bodyRZ: -s * 0.32 * lean, headRZ: -s * 0.5 * k, eyesOpen: 1 - 0.75 * k, blush: 0.5 * k, ...both([0.1, 0.5, 0.22], TO_ME, 'relaxed') });
     },
   },
   bHeadRest: {
@@ -302,8 +305,9 @@ const B = {
     pose: (t, c) => {
       const s = sideOf(c);
       const k = ramp(t, 0.1, 0.8) * (1 - ramp(t, 1.6, 2.2));
+      const lean = k * fit(c, 0.44, 0.85);
       return seated({
-        rigX: s * 0.1 * k, bodyRZ: -s * 0.35 * k, headRY: s * 0.75 * k, headRZ: -s * 0.1 * k,
+        rigX: s * 0.1 * lean, bodyRZ: -s * 0.35 * lean, headRY: s * 0.75 * k, headRZ: -s * 0.1 * k,
         pucker: k > 0.6 && t < 1.7 ? 1 : 0, eyesOpen: 1 - 0.85 * k, blush: Math.max(0.5 * k, ramp(t, 1.5, 2.0)),
         ...both([0.1, 0.5, 0.22], TO_ME, 'relaxed'),
       });
@@ -351,7 +355,7 @@ const B = {
       }
       const k = ramp(t, 0.2, 0.9) * (1 - ramp(t, 1.6, 2.1));
       return seated({
-        ...hand(nearHand(s), [s * lerp(0.15, 0.3, k), lerp(0.55, 0.78, k), lerp(0.26, 0.33, k)], [0, 0.4, 1], 'fist', [s * 0.6, 0.6, 0.5]),
+        ...hand(nearHand(s), [s * lerp(0.15, apart(c) * 0.42, k), lerp(0.55, 0.78, k), lerp(0.26, 0.33, k)], [0, 0.4, 1], 'fist', [s * 0.6, 0.6, 0.5]),
         headRZ: -s * 0.15 * k, blush: 0.4 + 0.4 * k, eyesOpen: 1 - 0.3 * k,
       });
     },
@@ -365,7 +369,7 @@ const B = {
       const smell = ramp(t, 1.6, 2.2) * (1 - ramp(t, 3.4, 4));
       const at = smell > 0.01
         ? [s * lerp(0.2, 0.06, smell), lerp(0.6, 0.9, smell), 0.33]
-        : [s * lerp(0.12, 0.32, reach), lerp(0.49, 0.78, reach), lerp(0.26, 0.33, reach)];
+        : [s * lerp(0.12, apart(c) * 0.43, reach), lerp(0.49, 0.78, reach), lerp(0.26, 0.33, reach)];
       return seated({ ...hand(nearHand(s), at, [-s * 0.5, 0, 0.5], reach > 0.5 || smell > 0 ? 'fist' : 'relaxed', smell > 0.3 ? [0, 1, 0.3] : null), eyesOpen: 1 - 0.8 * smell, blush: ramp(t, 1.2, 1.8) });
     },
     tick: once(2.2, (c) => {
@@ -381,11 +385,12 @@ const B = {
     pose: (t, c) => {
       const s = sideOf(c);
       const k = ramp(t, 0.1, 0.7) * (1 - ramp(t, 2.5, 3));
+      const lean = k * fit(c, 0.07, 0.5);
       return seated({
         // The phone held up and out to the side, its screen towards you; ✌️ by your cheek.
         ...hand(farHand(s), [-s * lerp(0.12, 0.3, k), lerp(0.55, 1.0, k), lerp(0.26, 0.25, k)], [s * 0.5, 0, -0.8], 'fist', [0, 1, 0]),
         ...hand(nearHand(s), [s * lerp(0.12, 0.17, k), lerp(0.49, 0.93, k), lerp(0.26, 0.3, k)], FORWARD, k > 0.5 ? 'peace' : 'relaxed'),
-        bodyRZ: -s * 0.07 * k, headRZ: -s * 0.14 * k, headRX: -0.1 * k,
+        bodyRZ: -s * 0.07 * lean, headRZ: -s * 0.14 * k, headRX: -0.1 * k,
         wink: pulse(t, 1.1, 1.3, 2.0, 2.3), eyesOpen: 1, blush: 0.3, browY: 0.2,
       });
     },
@@ -395,7 +400,7 @@ const B = {
     pose: (t, c) => {
       const s = sideOf(c);
       const k = ramp(t, 0.3, 0.9) * (1 - ramp(t, 2.5, 3));
-      return seated({ ...hand(farHand(s), [-s * 0.2, lerp(0.49, 0.98, k), 0.25], FORWARD, k > 0.5 ? 'peace' : 'relaxed'), bodyRZ: -s * 0.07 * k, headRZ: -s * 0.14 * k, mouthOpen: 0.2 * k, blush: 0.3 });
+      return seated({ ...hand(farHand(s), [-s * 0.2, lerp(0.49, 0.98, k), 0.25], FORWARD, k > 0.5 ? 'peace' : 'relaxed'), bodyRZ: -s * 0.07 * k * fit(c, 0.07, 0.5), headRZ: -s * 0.14 * k, mouthOpen: 0.2 * k, blush: 0.3 });
     },
   },
 
@@ -413,10 +418,12 @@ const B = {
     pose: (t, c) => {
       const s = sideOf(c);
       if (!besideMe(c)) return seated({ ...hands([[-0.15, 0.75, 0.42], FORWARD, wiggle(t)], [[0.15, 0.75, 0.42], FORWARD, wiggle(t + 0.3)]), eyesOpen: 0.5, browY: 0.3 });
+      const lean = fit(c, 0.25); // they fall away from you, so there's room soon
+      const reach = apart(c);
       return seated({
-        rigX: s * 0.05, bodyRZ: -s * 0.2,
-        ...hand(nearHand(s), [s * (0.4 + 0.04 * Math.sin(t * 25)), 0.6, 0.12], [s, 0, 0.3], wiggle(t)),
-        ...hand(farHand(s), [s * (0.26 + 0.04 * Math.sin(t * 25 + 1.5)), 0.62, 0.3], [s, 0, 0.3], wiggle(t + 0.3)),
+        rigX: s * 0.05 * lean, bodyRZ: -s * 0.2 * lean,
+        ...hand(nearHand(s), [s * (reach - 0.33 + 0.04 * Math.sin(t * 25)), 0.6, 0.12], [s, 0, 0.3], wiggle(t)),
+        ...hand(farHand(s), [s * (reach - 0.47 + 0.04 * Math.sin(t * 25 + 1.5)), 0.62, 0.3], [s, 0, 0.3], wiggle(t + 0.3)),
         eyesOpen: 0.5, mouthOpen: 0.3, browY: 0.3, browTilt: 0.3,
       });
     },
@@ -454,8 +461,9 @@ const B = {
     pose: (t, c) => {
       const s = sideOf(c);
       const k = ramp(t, 0.1, 0.7) * (1 - ramp(t, 2.6, 3.2));
+      const lean = k * fit(c, 0.47, 0.85);
       return seated({
-        rigX: s * 0.1 * k, bodyRZ: -s * 0.38 * k, headRY: s * 0.8 * k,
+        rigX: s * 0.1 * lean, bodyRZ: -s * 0.38 * lean, headRY: s * 0.8 * k,
         ...hand(nearHand(s), [s * 0.1, lerp(0.49, 0.92, k), lerp(0.26, 0.3, k)], [s * 0.8, 0, 0.4], k > 0.5 ? 'cup' : 'relaxed'),
         wink: ramp(t, 2.7, 3.0), eyesOpen: 0.8,
       });
@@ -512,7 +520,7 @@ const B = {
       const stretch = pulse(t, 0.3, 0.9, 1.5, 2.0);
       const arm = ramp(t, 1.6, 2.2) * (1 - ramp(t, 4.6, 5.2));
       const up = (x) => [x, lerp(0.49, 1.1, stretch), lerp(0.26, -0.02, stretch)];
-      const around = [s * 0.5, 0.88, -0.08];
+      const around = [s * Math.min(0.62, apart(c) - 0.12), 0.88, -0.2]; // behind their back, onto their far shoulder
       const near = arm > 0.001 ? up(s * 0.15).map((v, i) => lerp(v, around[i], arm)) : up(s * 0.15);
       return seated({
         ...hand(farHand(s), up(-s * 0.15), UP, 'open'),
@@ -573,7 +581,7 @@ function leanIn(from, duration) {
   return (t, c) => {
     const s = sideOf(c);
     const k = ramp(t, from, from + 0.8) * (1 - ramp(t, duration - 0.6, duration));
-    return seated({ bodyRZ: -s * 0.18 * k, headRZ: -s * 0.35 * k, eyesOpen: 1 - 0.7 * k, blush: 0.8 * k, ...both([0.06, 0.52, 0.24], INWARD, 'relaxed') });
+    return seated({ bodyRZ: -s * 0.18 * k * fit(c, 0.18, 0.6), headRZ: -s * 0.35 * k, eyesOpen: 1 - 0.7 * k, blush: 0.8 * k, ...both([0.06, 0.52, 0.24], INWARD, 'relaxed') });
   };
 }
 
@@ -581,8 +589,9 @@ function cuddle(t, c) {
   const s = sideOf(c);
   const k = ramp(t, 0.3, 1.0) * (1 - ramp(t, 3.0, 3.6));
   return seated({
-    bodyRZ: -s * 0.2 * k, headRZ: -s * 0.35 * k, eyesOpen: 1 - 0.75 * k, blush: 0.6 * k,
-    ...hand(nearHand(s), [s * lerp(0.12, 0.4, k), lerp(0.49, 0.56, k), lerp(0.26, -0.04, k)], [-s, 0, 0], 'relaxed'),
+    bodyRZ: -s * 0.2 * k * fit(c, 0.2, 0.5), headRZ: -s * 0.35 * k, eyesOpen: 1 - 0.75 * k, blush: 0.6 * k,
+    // An arm round their waist, behind them.
+    ...hand(nearHand(s), [s * lerp(0.12, Math.min(0.5, apart(c) * 0.55), k), lerp(0.49, 0.56, k), lerp(0.26, -0.12, k)], [-s, 0, 0], 'relaxed'),
   });
 }
 
@@ -590,7 +599,8 @@ function eskimo(t, c) {
   const s = sideOf(c);
   const k = ramp(t, 0.2, 0.8) * (1 - ramp(t, 2.6, 3.2));
   const rub = Math.sin(t * 14) * pulse(t, 0.8, 1.0, 2.2, 2.5);
-  return seated({ bodyRZ: -s * 0.32 * k, rigX: s * 0.06 * k, headRY: s * 0.7 * k, headRZ: -s * 0.15 * k + 0.12 * rub, eyesOpen: 1 - 0.85 * k, blush: 0.8 * k, ...both([0.1, 0.5, 0.22], TO_ME, 'relaxed') });
+  const lean = k * fit(c, 0.38, 0.5); // you both lean in: noses touch in the middle
+  return seated({ bodyRZ: -s * 0.32 * lean, rigX: s * 0.06 * lean, headRY: s * 0.7 * k, headRZ: -s * 0.15 * k + 0.12 * rub, eyesOpen: 1 - 0.85 * k, blush: 0.8 * k, ...both([0.1, 0.5, 0.22], TO_ME, 'relaxed') });
 }
 
 /** Feeding: `who` 0 = the one who started (feeds first), 1 = the other one (eats first). */
@@ -602,8 +612,9 @@ function feed(t, c, who) {
   const e = ramp(t, eat[0], eat[0] + 0.4) * (1 - ramp(t, eat[1] - 0.2, eat[1] + 0.2));
   const chew = t > eat[1] - 0.2 && t < eat[1] + 0.8 ? 0.15 * Math.abs(Math.sin(t * 12)) : 0;
   return seated({
-    ...hand(nearHand(s), [s * lerp(0.18, 0.3, g), lerp(0.62, 0.9, g), lerp(0.3, 0.3, g)], [0, 0.3, 1], 'fist', [s * lerp(0.2, 0.9, g), 0.4, 0.3]),
-    bodyRZ: -s * 0.18 * e, headRY: s * 0.45 * e, mouthOpen: Math.max(0.6 * e * (e > 0.7 ? 1 : 0), chew), eyesOpen: 1 - 0.5 * e, blush: 0.4,
+    // The spoon goes up in front of their mouth.
+    ...hand(nearHand(s), [s * lerp(0.18, Math.min(0.5, apart(c) - 0.28), g), lerp(0.62, 0.94, g), lerp(0.3, 0.34, g)], [0, 0.3, 1], 'fist', [s * lerp(0.2, 0.9, g), 0.4, 0.3]),
+    bodyRZ: -s * 0.18 * e * fit(c, 0.18, 0.7), headRY: s * 0.45 * e, mouthOpen: Math.max(0.6 * e * (e > 0.7 ? 1 : 0), chew), eyesOpen: 1 - 0.5 * e, blush: 0.4,
   });
 }
 
@@ -619,7 +630,7 @@ function gaze(t, c) {
   const away = ramp(t, 2.2, 2.7) * (1 - ramp(t, 3.7, 4.2));
   const look = k * (1 - ramp(t, 2.2, 2.7));
   return seated({
-    headRY: s * 0.85 * look - s * 0.45 * away, headRX: 0.25 * away, bodyRZ: -s * 0.08 * look,
+    headRY: s * 0.85 * look - s * 0.45 * away, headRX: 0.25 * away, bodyRZ: -s * 0.08 * look * fit(c, 0.08, 0.5),
     eyeScale: 1 + 0.15 * look, eyesOpen: 1 - 0.5 * away, blush: 0.2 * k + 0.8 * away,
   });
 }
@@ -627,9 +638,11 @@ function gaze(t, c) {
 function halfHeart(t, c) {
   const s = sideOf(c);
   const k = ramp(t, 0.2, 0.7) * (1 - ramp(t, 2.9, 3.4));
+  const lean = fit(c, 0.12, 0.5);
   return seated({
-    ...hand(nearHand(s), [s * lerp(0.12, 0.17, k), lerp(0.49, 0.86, k), lerp(0.26, 0.29, k)], [s, 0, -0.3], k > 0.5 ? 'heart' : 'relaxed', k > 0.5 ? [s * 0.35, 1, 0.05] : null),
-    bodyRZ: -s * 0.12 * k, headRZ: -s * 0.15 * k, blush: 0.6 * k, eyesOpen: 1 - 0.5 * k,
+    // My half of the heart meets theirs in the middle.
+    ...hand(nearHand(s), [s * lerp(0.12, Math.max(0.17, apart(c) / 2 - 0.1 * lean), k), lerp(0.49, 0.86, k), lerp(0.26, 0.29, k)], [s, 0, -0.3], k > 0.5 ? 'heart' : 'relaxed', k > 0.5 ? [s * 0.35, 1, 0.05] : null),
+    bodyRZ: -s * 0.12 * k * lean, headRZ: -s * 0.15 * k, blush: 0.6 * k, eyesOpen: 1 - 0.5 * k,
   });
 }
 
@@ -637,7 +650,7 @@ function nap(t, c) {
   const s = sideOf(c);
   const k = ramp(t, 0.3, 1.5) * (1 - ramp(t, 7.3, 8));
   return seated({
-    headRX: 0.45 * k, headRZ: -s * 0.35 * k, bodyRZ: -s * 0.1 * k, bodyRX: -0.04 + 0.08 * k,
+    headRX: 0.45 * k, headRZ: -s * 0.35 * k, bodyRZ: -s * 0.1 * k * fit(c, 0.1, 0.5), bodyRX: -0.04 + 0.08 * k,
     eyesOpen: 1 - 0.92 * k, mouthOpen: 0.1 * k * (0.5 + 0.5 * Math.sin(t * 1.5)), ...both([0.08, 0.5, 0.22], TO_ME, 'relaxed'),
   });
 }
@@ -645,7 +658,7 @@ function nap(t, c) {
 function quiet(t, c) {
   const s = sideOf(c);
   const k = ramp(t, 0.2, 1.0) * (1 - ramp(t, 3.4, 4));
-  return seated({ bodyRZ: -s * 0.12 * k, headRZ: -s * 0.22 * k, eyesOpen: 1 - 0.55 * k, bodyY: 0.006 * Math.sin(t * 1.4), blush: 0.4 * k, ...both([0.06, 0.52, 0.24], INWARD, 'relaxed') });
+  return seated({ bodyRZ: -s * 0.12 * k * fit(c, 0.12, 0.5), headRZ: -s * 0.22 * k, eyesOpen: 1 - 0.55 * k, bodyY: 0.006 * Math.sin(t * 1.4), blush: 0.4 * k, ...both([0.06, 0.52, 0.24], INWARD, 'relaxed') });
 }
 
 function rest(t) {
@@ -666,11 +679,11 @@ function uno(t, c, turner) {
     // Sitting there… turns at the last second.
     const turn = ramp(t, 0.75, 0.95) * (1 - ramp(t, 2.3, 2.8));
     return seated({
-      headRY: s * 0.9 * turn - s * 0.4 * away, bodyRZ: -s * 0.1 * turn, pucker: t > 0.9 && t < 1.1 ? 1 : 0,
+      headRY: s * 0.9 * turn - s * 0.4 * away, bodyRZ: -s * 0.1 * turn * fit(c, 0.1, 0.25), pucker: t > 0.9 && t < 1.1 ? 1 : 0,
       eyeScale: frozen ? 1.4 : 1, eyesOpen: frozen ? 1 : 1 - 0.6 * away, blush: ramp(t, 1.2, 1.6),
     });
   }
-  const lean = ramp(t, 0.1, 0.8) * (1 - ramp(t, 2.3, 2.8));
+  const lean = ramp(t, 0.1, 0.8) * (1 - ramp(t, 2.3, 2.8)) * fit(c, 0.44, 0.75);
   return seated({
     rigX: s * 0.1 * lean, bodyRZ: -s * 0.35 * lean, headRY: s * 0.75 * lean - s * 0.4 * away,
     pucker: t > 0.5 && t < 1.1 ? 1 : 0, eyeScale: frozen ? 1.4 : 1, eyesOpen: t < 1.0 ? 1 - 0.85 * lean : frozen ? 1 : 1 - 0.6 * away,
@@ -681,8 +694,9 @@ function uno(t, c, turner) {
 function bigHug(t, c) {
   const s = sideOf(c);
   const k = ramp(t, 0.1, 0.6) * (1 - ramp(t, 2.8, 3.4));
+  const lean = k * fit(c, 0.26, 0.5); // you both lean in
   return seated({
-    rigRY: s * 0.55 * k, rigX: s * 0.08 * k, bodyRZ: -s * 0.15 * k, bodyRX: 0.1 * k,
+    rigRY: s * 0.55 * k, rigX: s * 0.08 * lean, bodyRZ: -s * 0.15 * lean, bodyRX: 0.1 * lean,
     ...hands(
       [[lerp(-0.12, 0.06, k), lerp(0.49, 0.72, k), lerp(0.26, 0.52, k)], k > 0.5 ? TO_ME : DOWN, 'relaxed'],
       [[lerp(0.12, -0.06, k), lerp(0.49, 0.7, k), lerp(0.26, 0.5, k)], k > 0.5 ? TO_ME : DOWN, 'relaxed'],

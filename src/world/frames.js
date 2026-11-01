@@ -1,6 +1,8 @@
 /**
  * Picture frames: moulding, mat board, the photo itself, a little museum
- * label, and a faked spotlight (glow on the wall + soft beam + lamp).
+ * label, and a faked spotlight (glow on the wall + soft beam + lamp). A video
+ * on a wall spot gets a frame too, showing its first picture and a ▶ (it
+ * plays there while someone stands in front of it — see wallVideos.js).
  *
  * Frames that share a material are merged into one mesh, so even a big
  * gallery is only a handful of draw calls — important for phones.
@@ -8,7 +10,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { WALL_HEIGHT } from './layout.js';
-import { radialGlowTexture, beamTexture, textTexture } from './textures.js';
+import { radialGlowTexture, beamTexture, textTexture, playBadgeTexture } from './textures.js';
 
 const MAT = 0.07; // mat board margin around the photo (m)
 const BORDER = 0.07; // frame moulding width (m)
@@ -39,6 +41,7 @@ export function buildFrames(plan, config, renderer, onProgress = () => {}) {
   const bulbMat = new THREE.MeshBasicMaterial({ color: '#fff3d6' });
 
   const buckets = { frame: [], mat: [], wallGlow: [], floorGlow: [], beam: [], lamp: [], bulb: [] };
+  const badgeMat = new THREE.MeshBasicMaterial({ map: playBadgeTexture(), transparent: true, depthWrite: false, toneMapped: false });
   const items = [];
   const loader = new THREE.TextureLoader();
   // Photos without a `url` (e.g. the sign-in page preview) just show their colour.
@@ -104,7 +107,28 @@ export function buildFrames(plan, config, renderer, onProgress = () => {}) {
     photo.rotation.y = f.rotationY;
     photo.userData.frameIndex = items.length;
     group.add(photo);
-    if (f.photo.url) {
+    let badge = null;
+    if (f.photo.isVideo) {
+      // A video: its first picture, with a ▶ in the middle (hidden while it plays).
+      const size = Math.min(0.42, Math.min(w, h) * 0.45);
+      badge = new THREE.Mesh(new THREE.PlaneGeometry(size, size), badgeMat);
+      badge.position.set(0, 0, DEPTH * 0.45 + 0.006).applyMatrix4(place);
+      badge.rotation.y = f.rotationY;
+      badge.renderOrder = 2;
+      group.add(badge);
+      Promise.resolve(f.photo.video.posterUrl)
+        .then((url) => url && loader.loadAsync(url))
+        .then((tex) => {
+          if (!tex) return;
+          tex.colorSpace = THREE.SRGBColorSpace;
+          photoMat.userData.poster = tex; // shown again when it stops playing
+          if (photoMat.userData.playing) return;
+          photoMat.map = tex;
+          photoMat.color.set('#ffffff');
+          photoMat.needsUpdate = true;
+        })
+        .catch(() => {});
+    } else if (f.photo.url) {
       f.photo.url('md')
         .then((url) => loader.loadAsync(url))
         .then((tex) => {
@@ -140,6 +164,8 @@ export function buildFrames(plan, config, renderer, onProgress = () => {}) {
 
     items.push({
       ...f,
+      isVideo: Boolean(f.photo.isVideo),
+      badge,
       mesh: photo,
       // A spot on the floor in front of the photo, used for "am I close?" checks.
       center: new THREE.Vector3(f.x, f.y, f.z),

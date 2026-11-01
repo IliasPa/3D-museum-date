@@ -5,7 +5,8 @@ export class Placard {
     this.date = el.querySelector('.placard-date');
     this.title = el.querySelector('.placard-title');
     this.caption = el.querySelector('.placard-caption');
-    el.querySelector('.placard-cta').textContent = isTouch ? 'Tap to view' : 'Click or press Space to view';
+    this.cta = el.querySelector('.placard-cta');
+    this.isTouch = isTouch;
     this.current = null;
     this.onOpen = () => {};
     el.addEventListener('click', () => {
@@ -22,6 +23,8 @@ export class Placard {
     this.caption.textContent = p.caption;
     this.date.hidden = !p.date;
     this.caption.hidden = !p.caption;
+    const verb = item.isVideo ? 'watch, with sound' : 'view';
+    this.cta.textContent = this.isTouch ? `Tap to ${verb}` : `Click or press Space to ${verb}`;
     this.el.hidden = false;
     requestAnimationFrame(() => this.el.classList.add('show'));
   }

@@ -1,9 +1,9 @@
 /**
  * The mirror: it hangs on a photo spot in an ornate golden frame. From far
  * away its glass is black. Stand in front of it and a dark mist swirls and
- * clears, showing "the thing you want the most" — the pictures the curator
- * chose for *you* (several take turns), or, if there are none, the two of you,
- * really reflected.
+ * clears, showing "the thing you want the most" — one of the pictures the
+ * curator chose for *you*, picked at random each time (the same one may come
+ * again), or, if there are none, the two of you, really reflected.
  */
 import * as THREE from 'three';
 import { Reflector } from 'three/addons/objects/Reflector.js';
@@ -12,7 +12,7 @@ import { textTexture } from './textures.js';
 const REVEAL_IN = 2.6; // seconds for the mist to clear
 const REVEAL_OUT = 1.0;
 const NEAR = 3.0; // metres from the wall, and within the mirror's width
-const SLIDE = 6; // seconds per picture when there are several
+const SLIDE = 6; // seconds before another (random) picture, when there are several
 
 /** The mirror's glass: a rectangle with an arched top, `w` × `h`, centred. */
 function archShape(w, h) {
@@ -85,7 +85,7 @@ const VEIL_SHADER = {
  * @param plan      the floor plan (its frames include the mirror's spot)
  * @param pictures  [{ url(size), width, height }] — this visitor's pictures (may be empty)
  * @param opts { reducedMotion, renderer }
- * @returns { group, update(dt, pos), dispose() } or null if there's no mirror
+ * @returns { group, spot, current, update(dt, pos), dispose() } or null if there's no mirror
  */
 export function buildMirror(plan, pictures, { reducedMotion = false, renderer } = {}) {
   const spot = plan.frames.find((f) => f.photo.isMirror);
@@ -117,9 +117,11 @@ export function buildMirror(plan, pictures, { reducedMotion = false, renderer } 
   const loader = new THREE.TextureLoader();
   const slides = [];
   let reflector = null;
+  const pick = () => Math.floor(Math.random() * pictures.length);
+  let current = pictures.length ? pick() : 0;
   if (pictures.length) {
     for (const [i, pic] of pictures.entries()) {
-      const mat = new THREE.MeshBasicMaterial({ color: '#000000', transparent: true, opacity: i === 0 ? 1 : 0, toneMapped: false, depthWrite: false });
+      const mat = new THREE.MeshBasicMaterial({ color: '#000000', transparent: true, opacity: i === current ? 1 : 0, toneMapped: false, depthWrite: false });
       const mesh = new THREE.Mesh(glass, mat);
       mesh.position.z = Z + i * 0.0005;
       holder.add(mesh);
@@ -184,12 +186,15 @@ export function buildMirror(plan, pictures, { reducedMotion = false, renderer } 
   let reveal = 0;
   let time = 0;
   let slideTime = 0;
-  let current = 0;
   const local = new THREE.Vector3();
   const inverse = new THREE.Matrix4();
   return {
     group,
     spot,
+    /** Which of the pictures shows (or would show) right now. */
+    get current() {
+      return current;
+    },
     /** Every frame: is the visitor standing in front of it? */
     update(dt, pos) {
       time += dt;
@@ -197,6 +202,12 @@ export function buildMirror(plan, pictures, { reducedMotion = false, renderer } 
       inverse.copy(holder.matrixWorld).invert();
       local.set(pos.x, spot.y, pos.z).applyMatrix4(inverse); // the visitor, in the mirror's own space
       const near = local.z > 0.3 && local.z < NEAR && Math.abs(local.x) < w / 2 + 1.0;
+      if (near && reveal === 0 && slides.length > 1) {
+        // Stepping up to it: a picture at random (behind the mist, so it just appears).
+        current = pick();
+        slideTime = 0;
+        slides.forEach((m, i) => (m.opacity = i === current ? 1 : 0));
+      }
       const speed = reducedMotion ? 1.5 : 1;
       reveal = Math.max(0, Math.min(1, reveal + (near ? dt / (REVEAL_IN / speed) : -dt / REVEAL_OUT)));
       veil.material.uniforms.uReveal.value = reducedMotion ? reveal : reveal * reveal * (3 - 2 * reveal);
@@ -206,7 +217,7 @@ export function buildMirror(plan, pictures, { reducedMotion = false, renderer } 
         slideTime += dt;
         if (slideTime > SLIDE) {
           slideTime = 0;
-          current = (current + 1) % slides.length;
+          current = pick(); // may be the same one again
         }
       }
       slides.forEach((m, i) => (m.opacity += ((i === current ? 1 : 0) - m.opacity) * Math.min(1, dt * 2)));

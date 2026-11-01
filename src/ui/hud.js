@@ -145,10 +145,11 @@ export class Hud {
   }
 
   /** The key hunt's count (null hides it). */
-  setHunt(found, total, emoji) {
+  setHunt(found, total, emoji, together = false) {
     this.huntChip.hidden = total == null;
     if (total == null) return;
     this.huntChip.textContent = `${emoji} ${found} / ${total}`;
+    this.huntChip.title = together ? 'Found together — a find by either of you counts for both' : '';
     this.huntChip.classList.toggle('done', found >= total);
     this.huntChip.classList.remove('pop');
     void this.huntChip.offsetWidth;

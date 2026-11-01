@@ -247,19 +247,26 @@ const status = (text) => ($('.layout-status').textContent = text);
 // ── Photo spots ───────────────────────────────────────────────────────
 // Every room has fixed spots on its walls (layout.js); each photo keeps its
 // own (`room` + `slot`), and `order` follows the walking order. The mirror
-// takes a spot too (its place is saved on the museum), and each video keeps
-// its bench (`room` + `bench`).
+// takes a spot too (its place is saved on the museum), and a video either
+// takes a spot (`slot`) or keeps a bench (`bench`).
 
 function currentPlan() {
   return planMuseum(museumConfig(state.current), state.photos, state.videos);
 }
+
+const MIRROR = { isMirror: true }; // stands for the mirror when it moves
+/** Wall items and videos moved on this page but not saved yet (their new place is in memory already). */
+let moved = new Set();
 
 /** Give every photo, video and the mirror a fixed place and the photos their walking-order number — and save what changed. */
 async function settleSpots() {
   const museum = state.current;
   const museumId = museum.id;
   const plan = currentPlan();
+  const dirty = moved;
+  moved = new Set();
   const updates = [];
+  const videoUpdates = [];
   let mirrorMoved = null;
   let order = 0;
   for (const f of plan.frames) {
@@ -267,24 +274,31 @@ async function settleSpots() {
     const room = f.roomIndex + 1;
     if (p.isMirror) {
       const m = museumConfig(museum).mirror;
-      if (m.room !== room || m.slot !== f.slot) mirrorMoved = museum.mirror = { ...m, room, slot: f.slot };
+      if (m.room !== room || m.slot !== f.slot || dirty.has(MIRROR)) mirrorMoved = museum.mirror = { ...m, room, slot: f.slot };
+      continue;
+    }
+    if (p.isVideo) {
+      const v = p.video;
+      if (v.slot !== f.slot || v.room !== room || v.bench != null || dirty.has(v)) {
+        Object.assign(v, { slot: f.slot, room, bench: null });
+        videoUpdates.push({ id: v.id, slot: f.slot, room, bench: null });
+      }
       continue;
     }
     order++;
-    if (p.slot !== f.slot || p.room !== room || p.order !== order) {
+    if (p.slot !== f.slot || p.room !== room || p.order !== order || dirty.has(p)) {
       Object.assign(p, { slot: f.slot, room, order });
       updates.push({ id: p.id, slot: f.slot, room, order });
     }
   }
-  const videoUpdates = [];
   for (const b of plan.benches) {
     const v = b.video;
-    if (v && (v.bench !== b.index || v.room !== b.roomIndex + 1)) {
-      Object.assign(v, { bench: b.index, room: b.roomIndex + 1 });
-      videoUpdates.push({ id: v.id, bench: b.index, room: v.room });
+    if (v && (v.bench !== b.index || v.room !== b.roomIndex + 1 || v.slot != null || dirty.has(v))) {
+      Object.assign(v, { bench: b.index, room: b.roomIndex + 1, slot: null });
+      videoUpdates.push({ id: v.id, bench: b.index, room: v.room, slot: null });
     }
   }
-  state.photos = plan.frames.filter((f) => !f.photo.isMirror).map((f) => f.photo);
+  state.photos = plan.frames.filter((f) => !f.photo.isMirror && !f.photo.isVideo).map((f) => f.photo);
   await Promise.all([
     store.updatePhotos(museumId, updates),
     store.updateVideos(museumId, videoUpdates),
@@ -313,32 +327,62 @@ function freeSpots(plan, room = null) {
 
 const roomTitle = (room) => museumConfig(state.current).rooms[room - 1]?.title ?? `Room ${room}`;
 
-/** Where a wall item (photo or the mirror) hangs right now. */
-function spotOf(item, plan = currentPlan()) {
-  const s = plan.spots.find((sp) => sp.photo && (sp.photo === item || (item.isMirror && sp.photo.isMirror)));
-  return s ? { room: s.roomIndex + 1, slot: s.slot } : { room: item.room, slot: item.slot };
+/** The photo, video or MIRROR behind something the plan shows (a wall item, or a video on a bench). */
+function realItem(thing) {
+  if (thing.isMirror) return MIRROR;
+  if (thing.isVideo) return thing.video;
+  return state.photos.find((p) => p.id === thing.id) ?? state.videos.find((v) => v.id === thing.id) ?? thing;
 }
 
-/** Move a wall item (a photo or the mirror) to a spot. */
-function setSpot(item, room, slot) {
-  if (item.isMirror) state.current.mirror = { ...museumConfig(state.current).mirror, enabled: true, room, slot };
+const isVideoItem = (item) => state.videos.includes(item);
+
+/** Where something is right now: { room, slot } on a wall spot, or { room, bench } (a video on a bench). */
+function placeOf(item, plan = currentPlan()) {
+  const s = plan.spots.find((sp) => sp.photo && realItem(sp.photo) === item);
+  if (s) return { room: s.roomIndex + 1, slot: s.slot };
+  const b = isVideoItem(item) && plan.benches.find((bn) => bn.video === item);
+  if (b) return { room: b.roomIndex + 1, bench: b.index };
+  return { room: item.room, slot: item.slot ?? null };
+}
+
+/** Put something somewhere (in memory; settleSpots saves it). `slot` and `bench` null: the room's first free one. */
+function putAt(item, { room, slot = null, bench = null }) {
+  moved.add(item);
+  if (item === MIRROR) state.current.mirror = { ...museumConfig(state.current).mirror, enabled: true, room, slot };
+  else if (isVideoItem(item)) Object.assign(item, { room, slot, bench });
   else Object.assign(item, { room, slot });
 }
 
-/** Put a photo (or the mirror) on another spot (swapping with what hangs there), or on a room's first free spot. */
-async function movePhotoToSpot(photo, { room, slot = null }) {
+/**
+ * Move a photo, the mirror or a video: onto a spot (`slot` — what hangs there
+ * swaps places with it), onto a bench (`bench`, videos only — a video there
+ * swaps), or into a room (only `room`: its first free spot, or for a video on
+ * a bench its first free bench).
+ */
+async function moveItem(item, to) {
   const plan = currentPlan();
-  const from = spotOf(photo, plan);
-  if (slot == null) {
-    if (from.room === room) return;
-    const free = freeSpots(plan, room)[0];
-    if (!free) return toast(`“${roomTitle(room)}” has no free spot — make it bigger first.`);
-    slot = free.slot;
+  const from = placeOf(item, plan);
+  const target = { room: to.room, slot: to.slot ?? null, bench: to.bench ?? null };
+  if (target.slot == null && target.bench == null) {
+    if (from.room === target.room) return;
+    if (from.bench != null) {
+      const free = plan.benches.find((b) => b.roomIndex === target.room - 1 && !b.video);
+      if (!free) return toast(`“${roomTitle(target.room)}” has no free bench.`);
+      target.bench = free.index;
+    } else {
+      const free = freeSpots(plan, target.room)[0];
+      if (!free) return toast(`“${roomTitle(target.room)}” has no free spot — make it bigger first.`);
+      target.slot = free.slot;
+    }
   }
-  const other = plan.spots.find((s) => s.roomIndex === room - 1 && s.slot === slot)?.photo;
-  if (other && other !== photo && !(other.isMirror && photo.isMirror)) setSpot(other.isMirror ? other : state.photos.find((p) => p.id === other.id), from.room, from.slot);
-  setSpot(photo.isMirror ? photo : state.photos.find((p) => p.id === photo.id) ?? photo, room, slot);
-  selection = { kind: 'spot', room, slot };
+  // What's there now goes where this one was — or, if it can't (a photo on a bench), to a free spot in that room.
+  const there = target.slot != null
+    ? plan.spots.find((s) => s.roomIndex === target.room - 1 && s.slot === target.slot)?.photo
+    : plan.benches.find((b) => b.roomIndex === target.room - 1 && b.index === target.bench)?.video;
+  const other = there ? realItem(there) : null;
+  if (other && other !== item) putAt(other, from.bench != null && !isVideoItem(other) ? { room: from.room } : from);
+  putAt(item, target);
+  selection = isVideoItem(item) ? { kind: 'video', id: item.id } : { kind: 'spot', room: target.room, slot: target.slot };
   await saveSpots();
   renderPhotosEverywhere();
 }
@@ -368,34 +412,43 @@ function deletePhotoLater(photo) {
   });
 }
 
-// ── Adding photos ─────────────────────────────────────────────────────
+// ── Adding photos and videos ──────────────────────────────────────────
 /**
- * Resize each photo in the browser, then save it on a spot: the given one
- * (`room` + `slot`), else the first free spot (in `room`, or anywhere).
- * `details[i]` can preset the texts (and room) of each photo.
+ * Resize each photo (or convert each video) in the browser, then save it on a
+ * spot: the given one (`room` + `slot`), else the first free spot (in `room`,
+ * or anywhere). `details[i]` can preset the texts, room and place of each photo.
  */
 async function uploadFiles(files, { room = null, slot = null, details = [] } = {}) {
   const museumId = state.current.id;
   const items = files.map((file, i) => ({ file, extra: details[i] ?? {} }))
-    .filter(({ file }) => file.type.startsWith('image/') || isHeic(file));
+    .filter(({ file }) => file.type.startsWith('image/') || isHeic(file) || isVideo(file));
   if (!items.length) return;
   const failed = [];
+  const added = { photos: 0, videos: 0, placed: 0 };
   let grew = null;
   for (const [i, { file, extra }] of items.entries()) {
     if (freeBytes() < 2 * MB) {
       failed.push(`${file.name} (the storage is full)`);
       continue;
     }
+    // Where it goes: this spot, else the first free one.
+    const wantedRoom = room ?? extra.room ?? null;
+    const free = freeSpots(currentPlan(), wantedRoom)[0];
+    const target = i === 0 && slot != null ? { room, slot }
+      : free ? { room: free.roomIndex + 1, slot: free.slot }
+        : { room: wantedRoom ?? museumConfig(state.current).rooms.length, slot: null }; // no free spot: that room grows
+    if (isVideo(file)) {
+      // Without a free spot, a video goes in front of a free bench instead. (addVideo says how it went.)
+      if (await addVideo(file, target)) added.videos++;
+      else failed.push(file.name);
+      if (state.current?.id !== museumId) return;
+      continue;
+    }
+    if (target.slot == null) grew = target.room;
     status(`Preparing ${i + 1} of ${items.length}: ${file.name}…`);
     try {
-      // Where it goes: this spot, else the first free one.
-      const wantedRoom = room ?? extra.room ?? null;
-      const free = freeSpots(currentPlan(), wantedRoom)[0];
-      const target = i === 0 && slot != null ? { room, slot }
-        : free ? { room: free.roomIndex + 1, slot: free.slot }
-          : { room: wantedRoom ?? museumConfig(state.current).rooms.length, slot: null }; // no free spot: that room grows
-      if (target.slot == null) grew = target.room;
       const processed = await processImage(file);
+      if (!processed.gps && Number.isFinite(extra.lat)) processed.gps = { lat: extra.lat, lng: extra.lng };
       const photo = await store.uploadPhoto(museumId, processed, {
         room: target.room,
         slot: target.slot,
@@ -403,7 +456,10 @@ async function uploadFiles(files, { room = null, slot = null, details = [] } = {
         title: extra.title ?? titleFromFileName(file.name),
         date: extra.date ?? '',
         caption: extra.caption ?? '',
+        place: extra.place ?? '',
       });
+      added.photos++;
+      if (photo.lat != null) added.placed++;
       if (state.current?.id !== museumId) continue; // switched museum meanwhile
       state.photos.push(photo);
       await settleSpots();
@@ -414,13 +470,20 @@ async function uploadFiles(files, { room = null, slot = null, details = [] } = {
       failed.push(`${file.name} (${err.message})`);
     }
   }
-  status(failed.length
-    ? `Done, but these didn’t work: ${failed.join(', ')}`
-    : `Added ${items.length} photo${items.length === 1 ? '' : 's'} ♥`);
+  if (items.length === 1 && isVideo(items[0].file)) return; // one video: addVideo's own message stays
+  const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
+  const what = [added.photos && plural(added.photos, 'photo'), added.videos && plural(added.videos, 'video')].filter(Boolean).join(' and ');
+  const places = !added.photos ? ''
+    : added.placed === added.photos ? ` · ${added.photos === 1 ? 'it' : 'all'} brought ${added.photos === 1 ? 'its' : 'their'} place along 📍`
+      : ` · ${added.placed} of ${added.photos} brought ${added.photos === 1 ? 'its' : 'their'} place along 📍`;
+  status(failed.length ? `Done, but these didn’t work: ${failed.join(', ')}` : `Added ${what} ♥${places}`);
+  if (added.placed < added.photos) {
+    toast(`${plural(added.photos - added.placed, 'photo')} came without the place where ${added.photos - added.placed === 1 ? 'it was' : 'they were'} taken (location off on the camera, or removed by a chat app or when sharing). Put ${added.photos - added.placed === 1 ? 'it' : 'them'} on the map in the Memory map tab.`, 8000);
+  }
   if (grew) toast(`Every spot was taken, so “${roomTitle(grew)}” grew longer.`, 5000);
 }
 
-// "+ Add photos": into the selected room, else the free spots in walking order.
+// "+ Add photos/videos": into the selected room, else the free spots in walking order.
 $('.photos-input').addEventListener('change', (e) => {
   uploadFiles([...e.target.files], { room: selection?.kind === 'room' ? selection.index + 1 : null });
   e.target.value = '';
@@ -433,12 +496,14 @@ $('.add-samples').addEventListener('click', async () => {
     const blob = await (await fetch(new URL(s.file, base))).blob();
     return new File([blob], s.file, { type: 'image/jpeg' });
   }));
-  await uploadFiles(files, { details: list.map(({ room, title, date, caption }) => ({ room, title, date, caption })) });
+  await uploadFiles(files, { details: list.map(({ room, title, date, caption, place, lat, lng }) => ({ room, title, date, caption, place, lat, lng })) });
 });
 
-// Files dropped straight onto the floor plan: photos onto a spot or a room, videos onto a bench or a room.
+// Files dropped straight onto the floor plan: photos and videos onto a spot or a room, a video onto a bench.
 const planWrap = $('.plan-wrap');
-const isVideo = (f) => f.type.startsWith('video/') || /\.(mov|mp4|m4v|webm)$/i.test(f.name);
+function isVideo(file) {
+  return file.type.startsWith('video/') || /\.(mov|mp4|m4v|webm)$/i.test(file.name);
+}
 planWrap.addEventListener('dragover', (e) => {
   if (!e.dataTransfer?.types.includes('Files')) return;
   e.preventDefault();
@@ -451,16 +516,14 @@ planWrap.addEventListener('drop', async (e) => {
   const hit = planView.hitTest(e.clientX, e.clientY);
   planView.showDrop(null);
   const files = [...e.dataTransfer.files];
-  const images = files.filter((f) => !isVideo(f));
-  const videos = files.filter(isVideo);
-  if (images.length) {
-    if (hit.spot && !hit.spot.photo) await uploadFiles(images, { room: hit.spot.roomIndex + 1, slot: hit.spot.slot });
-    else await uploadFiles(images, { room: hit.spot ? hit.spot.roomIndex + 1 : hit.room ? hit.room.index + 1 : null });
-  }
-  for (const file of videos) {
-    const bench = hit.bench && !hit.bench.video ? hit.bench : null;
-    await addVideo(file, bench ? { room: bench.roomIndex + 1, bench: bench.index } : { room: hit.bench ? hit.bench.roomIndex + 1 : hit.room ? hit.room.index + 1 : 1 });
-  }
+  if (hit.bench) {
+    // Onto a bench: the (first) video hangs in front of it; anything else takes the room's free spots.
+    const first = hit.bench.video ? null : files.find(isVideo);
+    const room = hit.bench.roomIndex + 1;
+    if (first) await addVideo(first, { room, bench: hit.bench.index });
+    await uploadFiles(files.filter((f) => f !== first), { room });
+  } else if (hit.spot && !hit.spot.photo) await uploadFiles(files, { room: hit.spot.roomIndex + 1, slot: hit.spot.slot });
+  else await uploadFiles(files, { room: hit.spot ? hit.spot.roomIndex + 1 : hit.room ? hit.room.index + 1 : null });
 });
 
 // ── Guests ────────────────────────────────────────────────────────────
@@ -565,9 +628,9 @@ $('.copy-link').addEventListener('click', async () => {
   }
 });
 
-// ── Videos (on the benches) ───────────────────────────────────────────
-/** Convert a video and hang it in front of a bench (`bench`, or the room's first free one). */
-async function addVideo(file, { room, bench = null }) {
+// ── Videos (on a wall spot, or in front of a bench) ───────────────────
+/** Convert a video and hang it on a spot (`slot`), in front of a bench (`bench`), or else in front of the room's first free bench. */
+async function addVideo(file, { room, slot = null, bench = null }) {
   const museumId = state.current.id;
   const out = $('.video-status');
   const say = (text) => {
@@ -585,46 +648,25 @@ async function addVideo(file, { room, bench = null }) {
     const video = await store.uploadVideo(museumId, processed, {
       order: Math.max(0, ...state.videos.map((v) => v.order ?? 0)) + 1,
       room,
-      ...(bench != null ? { bench } : {}),
+      slot,
+      bench,
       title: titleFromFileName(file.name),
       caption: '',
     }, (n, total) => say(`Uploading… ${Math.round((n / total) * 100)}%`));
     if (state.current?.id === museumId) {
       state.videos.push(video);
-      await settleSpots(); // its screen covers a spot or two: photos there move to free spots
+      await settleSpots(); // on a bench, its screen covers a spot or two: photos there move to free spots
       selection = { kind: 'video', id: video.id };
       renderPhotosEverywhere();
       updateUsage();
     }
     say(`Video added ♥ (${megabytes(processed.bytes.length)}) — give it a title below.`);
+    return true;
   } catch (err) {
     console.error(err);
     say(`That video didn’t work: ${err.message}`);
+    return false;
   }
-}
-
-/** Move a video to another bench (swapping with a video there) or to a room's first free bench. */
-async function moveVideo(video, { room, bench = null }) {
-  if (video.room === room && (bench == null || video.bench === bench)) return;
-  if (bench != null) {
-    const other = state.videos.find((v) => v !== video && v.room === room && v.bench === bench);
-    if (other) Object.assign(other, { room: video.room, bench: video.bench });
-    Object.assign(video, { room, bench });
-  } else {
-    Object.assign(video, { room, bench: null });
-  }
-  selection = { kind: 'video', id: video.id };
-  status('Saving…');
-  renderPreview();
-  try {
-    await store.updateVideos(state.current.id, state.videos.map((v) => ({ id: v.id, room: v.room, bench: v.bench ?? null })));
-    await settleSpots(); // its screen covers other spots now
-    status('Saved ✓');
-  } catch (err) {
-    console.error(err);
-    status('Couldn’t save — try again.');
-  }
-  renderPreview();
 }
 
 // ── Music ─────────────────────────────────────────────────────────────
@@ -728,8 +770,7 @@ function renderPreview() {
       renderPreview();
       if (selection) document.querySelector('[data-panel="preview"] .panel:not([hidden])')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     },
-    onDrop: (photo, to) => movePhotoToSpot(photo, to),
-    onVideoDrop: (video, to) => moveVideo(state.videos.find((v) => v.id === video.id) ?? video, to),
+    onDrop: (thing, to) => moveItem(realItem(thing), to),
   });
   $('.plan-wrap').replaceChildren(planView.svg);
   $('.add-mirror').hidden = config.mirror.enabled;
@@ -785,7 +826,7 @@ let spotPhoto = null;
 function renderSpotPanel(plan) {
   const panel = $('.spot-panel');
   const spot = selectedSpot(plan);
-  panel.hidden = !spot || spot.photo?.isMirror;
+  panel.hidden = !spot || spot.photo?.isMirror || spot.photo?.isVideo;
   if (panel.hidden) return;
   const photo = spot.photo;
   $('.spot-filled', panel).hidden = !photo;
@@ -807,7 +848,8 @@ function renderSpotPanel(plan) {
   // The key hunt's keys in this photo (moved in the Key hunt tab).
   const hunt = museumConfig(state.current).hunt;
   paintKeys($('.sp-frame', panel), hiddenKeys(hunt, state.photos).filter((k) => k.photo === photo.id), shapeOf(hunt).emoji);
-  $('.sp-where', panel).textContent = `Spot ${spot.number} · ${roomTitle(spot.roomIndex + 1)}`;
+  const place = photo.lat != null ? `📍 ${photo.place || `${photo.lat.toFixed(3)}, ${photo.lng.toFixed(3)}`}` : 'no place on the map yet (Memory map tab)';
+  $('.sp-where', panel).textContent = `Spot ${spot.number} · ${roomTitle(spot.roomIndex + 1)} · ${place}`;
   for (const name of ['title', 'date', 'caption']) setField(panel.querySelector(`[name="${name}"]`), photo[name], key);
   panel.dataset.for = key;
 }
@@ -874,7 +916,7 @@ spotDrop.addEventListener('drop', (e) => {
 $('.sp-mirror').addEventListener('click', async () => {
   if (selection?.kind !== 'spot') return;
   const { room, slot } = selection;
-  setSpot({ isMirror: true }, room, slot);
+  putAt(MIRROR, { room, slot });
   await saveMirror();
   selection = { kind: 'spot', room, slot };
   renderPreview();
@@ -1001,8 +1043,11 @@ function renderVideoPanel(plan) {
     $('.vp-poster', panel).src = posterUrl(video);
   }
   const bench = plan.benches.find((b) => b.video?.id === video.id);
+  const spot = plan.spots.find((sp) => sp.photo?.isVideo && sp.photo.id === video.id);
   const minutes = `${Math.floor(video.duration / 60)}:${String(Math.round(video.duration % 60)).padStart(2, '0')}`;
-  $('.vp-where', panel).textContent = `▶ On a bench in ${roomTitle((bench?.roomIndex ?? 0) + 1)} — drag the ▶ onto another bench to move it`;
+  $('.vp-where', panel).textContent = spot
+    ? `▶ On spot ${spot.number} in ${roomTitle(spot.roomIndex + 1)}: it plays in its frame while someone stands in front of it. Drag the ▶ onto another spot or a bench to move it.`
+    : `▶ At a bench in ${roomTitle((bench?.roomIndex ?? 0) + 1)}: it plays when someone sits there. Drag the ▶ onto another bench or a free spot to move it.`;
   $('.vp-info', panel).textContent = `${minutes} · ${megabytes(video.size)}`;
   for (const name of ['title', 'caption']) setField(panel.querySelector(`[name="${name}"]`), video[name], key);
   panel.dataset.for = key;
@@ -1181,7 +1226,10 @@ async function saveLayout(nextRooms, renumber = null) {
     // renumber(oldRoomNumber) → new room number, for every photo and video.
     videoUpdates = state.videos.filter((v) => renumber(v.room) !== v.room).map((v) => ({ id: v.id, room: renumber(v.room) }));
     for (const v of state.videos) v.room = renumber(v.room);
-    for (const p of state.photos) p.room = renumber(p.room); // they keep their spots (or take free ones)
+    for (const p of state.photos) {
+      if (renumber(p.room) !== p.room) moved.add(p);
+      p.room = renumber(p.room); // they keep their spots (or take free ones)
+    }
     const m = museumConfig(state.current).mirror;
     if (m.room != null) state.current.mirror = { ...m, room: renumber(m.room) };
   }

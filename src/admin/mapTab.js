@@ -4,7 +4,7 @@
  * them, name the places, put a pin on the map by hand or remove one. The
  * pins show on the map table in the hidden last room.
  */
-import { loadWorld, fitView, drawMap, project, unproject, zoomView, panView, placeOf, groupPins } from '../map/worldMap.js';
+import { loadWorld, fitView, drawMap, drawPin, project, unproject, zoomView, panView, placeOf, groupPins } from '../map/worldMap.js';
 import { museumConfig } from '../museumConfig.js';
 
 const $ = (selector, root = document) => root.querySelector(selector);
@@ -108,10 +108,22 @@ export function createMapTab(panel, ctx) {
     canvas.height = Math.round(h * dpr);
     const g = canvas.getContext('2d');
     g.setTransform(dpr, 0, 0, dpr, 0, 0);
-    drawMap(g, world, view, w, h);
-    for (const pin of groupPins(ctx.photos(), view)) {
-      const on = selected && pin.photos.includes(selected);
-      drawPin(g, pin.x * w, pin.y * h, on, pin.photos.length);
+    const photos = ctx.photos();
+    const pins = groupPins(photos, view);
+    drawMap(g, world, view, w, h, { visited: photos.map(placeOf), route: pins });
+    for (const pin of pins) drawPin(g, pin.x * w, pin.y * h, { chosen: selected && pin.photos.includes(selected), count: pin.photos.length });
+    // The places' names beside their pins.
+    g.font = '600 12px Manrope, sans-serif';
+    g.textBaseline = 'middle';
+    g.lineJoin = 'round';
+    for (const pin of pins) {
+      const place = pin.photos.find((p) => p.place)?.place;
+      if (!place) continue;
+      g.strokeStyle = 'rgba(255, 252, 245, 0.9)';
+      g.lineWidth = 4;
+      g.strokeText(place, pin.x * w + 11, pin.y * h - 18);
+      g.fillStyle = '#4a2e22';
+      g.fillText(place, pin.x * w + 11, pin.y * h - 18);
     }
     $('.map-hint', panel).textContent = selected
       ? `Click on the map to put “${selected.title || `photo ${selected.order}`}” there.`
@@ -196,35 +208,4 @@ export function createMapTab(panel, ctx) {
   }
 
   return { render };
-}
-
-/** A map pin: a round head on a short needle (red, gold when chosen), with a count if it holds several photos. */
-function drawPin(g, x, y, on, count) {
-  g.save();
-  g.translate(x, y);
-  g.fillStyle = 'rgba(0, 0, 0, 0.18)';
-  g.beginPath();
-  g.ellipse(3, 1, 5, 2, 0, 0, Math.PI * 2);
-  g.fill();
-  g.strokeStyle = '#5a4630';
-  g.lineWidth = 2;
-  g.beginPath();
-  g.moveTo(0, 0);
-  g.lineTo(0, -14);
-  g.stroke();
-  g.fillStyle = on ? '#d9a62e' : '#c4223f';
-  g.strokeStyle = '#fff';
-  g.lineWidth = 2;
-  g.beginPath();
-  g.arc(0, -18, 7, 0, Math.PI * 2);
-  g.fill();
-  g.stroke();
-  if (count > 1) {
-    g.fillStyle = '#fff';
-    g.font = '600 9px Manrope, sans-serif';
-    g.textAlign = 'center';
-    g.textBaseline = 'middle';
-    g.fillText(String(count), 0, -17.5);
-  }
-  g.restore();
 }

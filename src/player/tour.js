@@ -60,7 +60,7 @@ export function tourPath(plan, { hasTable = false } = {}) {
       else to.z = rz1;
       if (!walkTo(to)) continue; // never walk backwards round the room
       const words = `${f.photo.title ?? ''} ${f.photo.caption ?? ''}`.length;
-      steps.push({ x: to.x, z: to.z, look: Math.atan2(-f.nx, -f.nz), wait: f.photo.isMirror ? 7 : Math.min(9, 3.5 + words / 30), photo: f.photo });
+      steps.push({ x: to.x, z: to.z, look: Math.atan2(-f.nx, -f.nz), wait: f.photo.isMirror || f.photo.isVideo ? 8 : Math.min(9, 3.5 + words / 30), photo: f.photo });
     }
     // On round the loop to the door in the north wall (the next room, or the curtain).
     const door = plan.doors.find((d) => d.south === room.index);
